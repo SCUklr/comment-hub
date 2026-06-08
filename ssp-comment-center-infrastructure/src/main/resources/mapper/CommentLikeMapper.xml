@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssp.comment.dao.mapper.CommentLikeMapper">
+
+    <resultMap id="BaseResultMap" type="com.ssp.comment.dao.pojo.CommentLikePO">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="targetId" column="target_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, target_id, target_type, create_time
+    </sql>
+
+    <insert id="insertSelective">
+        insert into component_comment_like
+        (id, user_id, target_id, target_type, create_time)
+        values
+        (#{id}, #{userId}, #{targetId}, #{targetType}, #{createTime})
+    </insert>
+
+    <select id="countByUserAndTarget" resultType="int">
+        select count(1)
+        from component_comment_like
+        where user_id = #{userId}
+          and target_id = #{targetId}
+          and target_type = #{targetType}
+    </select>
+
+    <delete id="deleteByUserAndTarget">
+        delete from component_comment_like
+        where user_id = #{userId}
+          and target_id = #{targetId}
+          and target_type = #{targetType}
+    </delete>
+</mapper>

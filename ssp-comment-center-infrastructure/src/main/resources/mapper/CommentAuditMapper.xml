@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssp.comment.dao.mapper.CommentAuditMapper">
+
+    <resultMap id="BaseResultMap" type="com.ssp.comment.dao.pojo.CommentAuditPO">
+        <id property="id" column="id"/>
+        <result property="targetId" column="target_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="auditContent" column="audit_content"/>
+        <result property="auditStatus" column="audit_status"/>
+        <result property="auditReason" column="audit_reason"/>
+        <result property="auditOperator" column="audit_operator"/>
+        <result property="auditTime" column="audit_time"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, target_id, target_type, audit_content, audit_status, audit_reason, audit_operator, audit_time
+    </sql>
+
+    <insert id="insertSelective">
+        insert into component_comment_audit
+        (id, target_id, target_type, audit_content, audit_status, audit_reason, audit_operator, audit_time)
+        values
+        (#{id}, #{targetId}, #{targetType}, #{auditContent}, #{auditStatus}, #{auditReason}, #{auditOperator}, #{auditTime})
+    </insert>
+</mapper>

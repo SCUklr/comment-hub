@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssp.comment.dao.mapper.ReplyMapper">
+
+    <resultMap id="BaseResultMap" type="com.ssp.comment.dao.pojo.ReplyPO">
+        <id property="id" column="id"/>
+        <result property="commentId" column="comment_id"/>
+        <result property="parentReplyId" column="parent_reply_id"/>
+        <result property="replyType" column="reply_type"/>
+        <result property="content" column="content"/>
+        <result property="images" column="images"/>
+        <result property="replyUserId" column="reply_user_id"/>
+        <result property="beRepliedUserId" column="be_replied_user_id"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="auditStatus" column="audit_status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="isDelete" column="is_delete"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, comment_id, parent_reply_id, reply_type, content, images,
+        reply_user_id, be_replied_user_id, like_count, audit_status, create_time, update_time, is_delete
+    </sql>
+
+    <insert id="insertSelective">
+        insert into component_comment_reply
+        (id, comment_id, parent_reply_id, reply_type, content, images, reply_user_id, be_replied_user_id, like_count, audit_status, create_time, update_time, is_delete)
+        values
+        (#{id}, #{commentId}, #{parentReplyId}, #{replyType}, #{content}, #{images}, #{replyUserId}, #{beRepliedUserId}, #{likeCount}, #{auditStatus}, #{createTime}, #{updateTime}, #{isDelete})
+    </insert>
+
+    <select id="selectOneById" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment_reply
+        where id = #{id}
+        limit 1
+    </select>
+
+    <select id="countByCommentAndParent" resultType="long">
+        select count(1)
+        from component_comment_reply
+        where comment_id = #{commentId}
+          and parent_reply_id = #{parentReplyId}
+          and is_delete = 0
+    </select>
+
+    <select id="selectPageByCommentAndParent" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment_reply
+        where comment_id = #{commentId}
+          and parent_reply_id = #{parentReplyId}
+          and is_delete = 0
+        order by create_time asc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectByCommentIdsAndParent" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment_reply
+        where comment_id in
+        <foreach collection="commentIds" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+          and parent_reply_id = #{parentReplyId}
+          and is_delete = 0
+        order by create_time asc
+    </select>
+
+    <update id="updateDeleteMark">
+        update component_comment_reply
+        set is_delete = #{isDelete},
+            update_time = now()
+        where id = #{id}
+    </update>
+
+    <update id="updateContent">
+        update component_comment_reply
+        set content = #{content},
+            images = #{images},
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updateLikeCount">
+        update component_comment_reply
+        set like_count = greatest(like_count + #{delta}, 0),
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updateAuditStatus">
+        update component_comment_reply
+        set audit_status = #{auditStatus},
+            update_time = now()
+        where id = #{id}
+    </update>
+</mapper>

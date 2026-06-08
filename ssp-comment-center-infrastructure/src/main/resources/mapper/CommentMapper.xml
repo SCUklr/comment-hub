@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssp.comment.dao.mapper.CommentMapper">
+
+    <resultMap id="BaseResultMap" type="com.ssp.comment.dao.pojo.CommentPO">
+        <id property="id" column="id"/>
+        <result property="commentObjectId" column="comment_object_id"/>
+        <result property="commentType" column="comment_type"/>
+        <result property="content" column="content"/>
+        <result property="images" column="images"/>
+        <result property="commentUserId" column="comment_user_id"/>
+        <result property="sort" column="sort"/>
+        <result property="replyCount" column="reply_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="auditStatus" column="audit_status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="isDelete" column="is_delete"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, comment_object_id, comment_type, content, images, comment_user_id, sort,
+        reply_count, like_count, audit_status, create_time, update_time, is_delete
+    </sql>
+
+    <insert id="insertSelective">
+        insert into component_comment
+        (id, comment_object_id, comment_type, content, images, comment_user_id, sort, reply_count, like_count, audit_status, create_time, update_time, is_delete)
+        values
+        (#{id}, #{commentObjectId}, #{commentType}, #{content}, #{images}, #{commentUserId}, #{sort}, #{replyCount}, #{likeCount}, #{auditStatus}, #{createTime}, #{updateTime}, #{isDelete})
+    </insert>
+
+    <select id="selectOneById" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where id = #{id}
+        limit 1
+    </select>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where id in
+        <foreach collection="idList" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+          and is_delete = 0
+    </select>
+
+    <select id="countByObject" resultType="long">
+        select count(1)
+        from component_comment
+        where comment_object_id = #{commentObjectId}
+          and comment_type = #{commentType}
+          and is_delete = 0
+    </select>
+
+    <select id="selectPageByObject" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where comment_object_id = #{commentObjectId}
+          and comment_type = #{commentType}
+          and is_delete = 0
+        order by sort desc, create_time desc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectHotPageByObject" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where comment_object_id = #{commentObjectId}
+          and comment_type = #{commentType}
+          and is_delete = 0
+        order by sort desc, like_count desc, create_time desc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <update id="updateDeleteMark">
+        update component_comment
+        set is_delete = #{isDelete},
+            update_time = now()
+        where id = #{id}
+    </update>
+
+    <update id="updateContent">
+        update component_comment
+        set content = #{content},
+            images = #{images},
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updatePin">
+        update component_comment
+        set sort = #{sort},
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updateReplyCount">
+        update component_comment
+        set reply_count = greatest(reply_count + #{delta}, 0),
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updateLikeCount">
+        update component_comment
+        set like_count = greatest(like_count + #{delta}, 0),
+            update_time = now()
+        where id = #{id}
+          and is_delete = 0
+    </update>
+
+    <update id="updateAuditStatus">
+        update component_comment
+        set audit_status = #{auditStatus},
+            update_time = now()
+        where id = #{id}
+    </update>
+</mapper>
