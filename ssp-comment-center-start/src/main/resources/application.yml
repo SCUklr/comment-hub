@@ -4,23 +4,145 @@ server:
 spring:
   application:
     name: ssp-comment-center
-  datasource:
-    url: jdbc:mysql://localhost:3306/ssp_comment?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+  # ============================================
+  # ShardingSphere-JDBC 分库分表配置
+  # ============================================
+  # 策略概述：
+  #   1. 评论表 component_comment：
+  #      - 分库键：comment_type（业务类型维度，如题解/面经/帖子）
+  #      - 分表键：comment_user_id（用户ID维度）
+  #      - 规模：2库 × 4表 = 8张物理表
+  #   2. 回复表 component_comment_reply：
+  #      - 分库分表键：comment_id（跟随评论聚合，确保楼中楼数据落在同一分片）
+  #      - 规模：2库 × 4表 = 8张物理表
+  #   3. 点赞表 component_comment_like：
+  #      - 分库分表键：user_id（用户维度，支撑高频点赞反查）
+  #      - 规模：2库 × 4表 = 8张物理表
+  #   4. 用户索引表 component_user_comment_index：
+  #      - 分库分表键：user_id（用户维度，支撑"我评论过哪些"反查）
+  #      - 规模：2库 × 4表 = 8张物理表
+  #   5. 审核表 component_comment_audit：
+  #      - 不分片，单表存储于默认库 ds_0
+  # ============================================
+  shardingsphere:
+    datasource:
+      names: ds_0, ds_1
+      ds_0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/ssp_comment_0?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+        username: root
+        password: root
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+      ds_1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/ssp_comment_1?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+        username: root
+        password: root
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+    rules:
+      sharding:
+        tables:
+          # ---------- 评论表 ----------
+          component_comment:
+            actualDataNodes: ds_${0..1}.component_comment_${0..3}
+            databaseStrategy:
+              standard:
+                shardingColumn: comment_type
+                shardingAlgorithmName: comment-db-inline
+            tableStrategy:
+              standard:
+                shardingColumn: comment_user_id
+                shardingAlgorithmName: comment-table-inline
+          # ---------- 回复表 ----------
+          component_comment_reply:
+            actualDataNodes: ds_${0..1}.component_comment_reply_${0..3}
+            databaseStrategy:
+              standard:
+                shardingColumn: comment_id
+                shardingAlgorithmName: reply-db-inline
+            tableStrategy:
+              standard:
+                shardingColumn: comment_id
+                shardingAlgorithmName: reply-table-inline
+          # ---------- 点赞表 ----------
+          component_comment_like:
+            actualDataNodes: ds_${0..1}.component_comment_like_${0..3}
+            databaseStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: like-db-inline
+            tableStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: like-table-inline
+          # ---------- 用户评论索引表 ----------
+          component_user_comment_index:
+            actualDataNodes: ds_${0..1}.component_user_comment_index_${0..3}
+            databaseStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: index-db-inline
+            tableStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: index-table-inline
+        shardingAlgorithms:
+          # 评论表分片算法
+          comment-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds_${comment_type % 2}
+          comment-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: component_comment_${comment_user_id % 4}
+          # 回复表分片算法
+          reply-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds_${comment_id % 2}
+          reply-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: component_comment_reply_${comment_id % 4}
+          # 点赞表分片算法
+          like-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds_${user_id % 2}
+          like-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: component_comment_like_${user_id % 4}
+          # 用户索引表分片算法
+          index-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds_${user_id % 2}
+          index-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: component_user_comment_index_${user_id % 4}
+    props:
+      sql-show: true
+  # ============================================
+  # Redis 配置
+  # ============================================
   redis:
     host: localhost
     port: 6379
     password:
     database: 0
 
+# MyBatis 配置
 mybatis:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.ssp.comment.dao.pojo
@@ -31,3 +153,4 @@ mybatis:
 logging:
   level:
     com.ssp.comment.dao.mapper: debug
+    org.apache.shardingsphere: debug

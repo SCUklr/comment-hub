@@ -51,8 +51,9 @@ public class CommentDomainService {
                                        String images,
                                        Integer userId) {
         validateCommentCreate(commentObjectId, commentType, content, userId);
-        ShardRoute route = CommentShardRouter.routeComment(commentObjectId);
-        log.info("[CommentDomainService.createComment] route comment shard -> {}", route.getPhysicalTable());
+        ShardRoute route = CommentShardRouter.routeComment(commentType, userId);
+        log.info("[CommentDomainService.createComment] shard route -> db={}, table={}, physical={}",
+                route.getDbIndex(), route.getTableIndex(), route.getPhysicalTable());
 
         CommentEntity entity = new CommentEntity();
         entity.setId(SnowflakeIdUtils.nextId());
@@ -183,8 +184,10 @@ public class CommentDomainService {
         commentLikedCarrier.clear();
         replyLikedCarrier.clear();
         commentLikeReplyCarrier.clear();
-        ShardRoute route = CommentShardRouter.routeComment(commentObjectId);
-        log.info("[CommentDomainService.queryCommentPage] route comment shard -> {}", route.getPhysicalTable());
+        // 查询场景：评论表按 comment_type 分库、comment_user_id 分表。
+        // 此处 SQL 条件含 comment_type，可命中分库；不含 comment_user_id，分表层面将广播路由。
+        // 生产环境可通过 Redis 缓存评论列表，降低广播查询压力。
+        log.info("[CommentDomainService.queryCommentPage] comment_type={}, broadcast-table-routing expected", commentType);
 
         int safePage = safePage(page);
         int safePageSize = safePageSize(pageSize);
