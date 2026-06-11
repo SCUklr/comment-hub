@@ -3,6 +3,11 @@ package com.ssp.comment;
 import com.ssp.comment.common.BizException;
 import com.ssp.comment.common.SnowflakeIdUtils;
 import com.ssp.comment.entity.*;
+import com.ssp.comment.event.CommentAuditPassedEvent;
+import com.ssp.comment.event.CommentCreatedEvent;
+import com.ssp.comment.event.CommentDeletedEvent;
+import com.ssp.comment.event.CommentLikedEvent;
+import com.ssp.comment.event.ReplyCreatedEvent;
 import com.ssp.comment.repository.*;
 import com.ssp.comment.route.CommentShardRouter;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +19,7 @@ import org.redisson.api.RMap;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +49,7 @@ public class CommentDomainService {
     private final CommentAuditRepository commentAuditRepository;
     private final UserCommentIndexRepository userCommentIndexRepository;
     private final RedissonClient redissonClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(rollbackFor = Exception.class)
     public CommentEntity createComment(Long commentObjectId,
@@ -72,6 +79,9 @@ public class CommentDomainService {
         commentRepository.save(entity);
 
         updateUserCommentIndex(userId, commentObjectId, commentType, COMMENT_TARGET_TYPE, entity.getId(), null, content);
+        eventPublisher.publishEvent(new CommentCreatedEvent(
+            entity.getId(), commentObjectId, commentType, userId, content, entity.getCreateTime()
+        ));
         return entity;
     }
 
@@ -114,6 +124,9 @@ public class CommentDomainService {
                 commentId,
                 entity.getId(),
                 content);
+        eventPublisher.publishEvent(new ReplyCreatedEvent(
+            entity.getId(), commentId, parentId, entity.getReplyType(), userId, content, entity.getCreateTime()
+        ));
         return entity;
     }
 
@@ -128,6 +141,9 @@ public class CommentDomainService {
                 throw new BizException("评论不存在");
             }
             commentRepository.updateDeleteMark(id, userId);
+            eventPublisher.publishEvent(new CommentDeletedEvent(
+                type, id, comment.getCommentObjectId(), comment.getCommentType(), userId
+            ));
             return;
         }
 
@@ -137,6 +153,13 @@ public class CommentDomainService {
         }
         replyRepository.updateDeleteMark(id, userId);
         commentRepository.updateReplyCount(reply.getCommentId(), -1);
+        CommentEntity comment = commentRepository.queryById(reply.getCommentId());
+        eventPublisher.publishEvent(new CommentDeletedEvent(
+            type, id,
+            comment != null ? comment.getCommentObjectId() : null,
+            comment != null ? comment.getCommentType() : null,
+            userId
+        ));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -248,15 +271,19 @@ public class CommentDomainService {
         }
         commentLikeRepository.save(buildLikeEntity(userId, targetId, targetType));
 
+        Integer newLikeCount = null;
+        Long commentObjectId = null;
+        Integer commentType = null;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
                 throw new BizException("评论不存在");
             }
             commentRepository.updateLikeCount(targetId, 1);
-            incrementCommentLikeCache(comment.getCommentObjectId(), targetId, 1);
             markUserLiked(userId, targetId, targetType, true);
-            updateHotCommentScore(comment.getCommentObjectId(), comment.getCommentType(), targetId, comment.getLikeCount() + 1);
+            newLikeCount = comment.getLikeCount() + 1;
+            commentObjectId = comment.getCommentObjectId();
+            commentType = comment.getCommentType();
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -265,10 +292,15 @@ public class CommentDomainService {
             replyRepository.updateLikeCount(targetId, 1);
             CommentEntity comment = commentRepository.queryById(reply.getCommentId());
             if (comment != null) {
-                incrementReplyLikeCache(comment.getCommentObjectId(), targetId, 1);
+                commentObjectId = comment.getCommentObjectId();
+                commentType = comment.getCommentType();
             }
             markUserLiked(userId, targetId, targetType, true);
+            newLikeCount = reply.getLikeCount() + 1;
         }
+        eventPublisher.publishEvent(new CommentLikedEvent(
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, true
+        ));
         return new LikeResult(targetId, targetType, true);
     }
 
@@ -279,15 +311,19 @@ public class CommentDomainService {
             throw new BizException("当前未点赞，无需取消");
         }
 
+        Integer newLikeCount = null;
+        Long commentObjectId = null;
+        Integer commentType = null;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
                 throw new BizException("评论不存在");
             }
             commentRepository.updateLikeCount(targetId, -1);
-            incrementCommentLikeCache(comment.getCommentObjectId(), targetId, -1);
             markUserLiked(userId, targetId, targetType, false);
-            updateHotCommentScore(comment.getCommentObjectId(), comment.getCommentType(), targetId, Math.max(comment.getLikeCount() - 1, 0));
+            newLikeCount = Math.max(comment.getLikeCount() - 1, 0);
+            commentObjectId = comment.getCommentObjectId();
+            commentType = comment.getCommentType();
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -296,10 +332,15 @@ public class CommentDomainService {
             replyRepository.updateLikeCount(targetId, -1);
             CommentEntity comment = commentRepository.queryById(reply.getCommentId());
             if (comment != null) {
-                incrementReplyLikeCache(comment.getCommentObjectId(), targetId, -1);
+                commentObjectId = comment.getCommentObjectId();
+                commentType = comment.getCommentType();
             }
             markUserLiked(userId, targetId, targetType, false);
+            newLikeCount = Math.max(reply.getLikeCount() - 1, 0);
         }
+        eventPublisher.publishEvent(new CommentLikedEvent(
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, false
+        ));
         return new LikeResult(targetId, targetType, false);
     }
 
@@ -325,6 +366,9 @@ public class CommentDomainService {
         } else {
             replyRepository.updateAuditStatus(targetId, auditStatus);
         }
+        eventPublisher.publishEvent(new CommentAuditPassedEvent(
+            targetId, targetType, auditStatus, LocalDateTime.now()
+        ));
     }
 
     public PageResult<CommentEntity> queryHotComments(Long commentObjectId,
