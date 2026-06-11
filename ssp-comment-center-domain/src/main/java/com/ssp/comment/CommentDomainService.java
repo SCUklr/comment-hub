@@ -517,6 +517,7 @@ public class CommentDomainService {
                                         Long targetReplyId,
                                         String latestContent) {
         UserCommentIndexEntity entity = new UserCommentIndexEntity();
+        entity.setId(SnowflakeIdUtils.nextId());
         entity.setUserId(userId);
         entity.setCommentObjectId(commentObjectId);
         entity.setCommentType(commentType);
@@ -527,6 +528,8 @@ public class CommentDomainService {
         entity.setLatestTime(LocalDateTime.now());
         entity.setInteractionCount(1);
         entity.setIsDelete(NORMAL_MARK);
+        entity.setCreateTime(LocalDateTime.now());
+        entity.setUpdateTime(LocalDateTime.now());
         userCommentIndexRepository.saveOrUpdate(entity);
     }
 

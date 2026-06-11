@@ -19,6 +19,7 @@ public class UserCommentIndexRepositoryImpl implements UserCommentIndexRepositor
     @Override
     public void saveOrUpdate(UserCommentIndexEntity indexEntity) {
         UserCommentIndexPO po = new UserCommentIndexPO();
+        po.setId(indexEntity.getId());
         po.setUserId(indexEntity.getUserId());
         po.setCommentObjectId(indexEntity.getCommentObjectId());
         po.setCommentType(indexEntity.getCommentType());
