@@ -32,8 +32,9 @@
 ssp-comment-center/
 ├── pom.xml                                    # 父POM
 ├── docs/                                      # 设计文档
-│   ├── ddl.sql                                # 单库建表脚本（开发环境）
-│   ├── ddl-sharding.sql                       # 分库分表建表脚本（生产环境，2库×4表）
+│   ├── database/                              # 数据库脚本
+│   │   ├── ddl.sql                            # 单库建表脚本（开发环境）
+│   │   └── ddl-sharding.sql                   # 分库分表建表脚本（生产环境，2库×4表）
 │   ├── 评论平台技术设计方案-精简版.md
 │   ├── 评论平台系统设计技术方案.md
 │   ├── 评论模块源码结构说明.md
@@ -106,8 +107,8 @@ ssp-comment-center/
 | `component_comment_audit` | 审核记录表 | 不分片，单表存储于默认库 |
 | `component_user_comment_index` | 用户评论索引表 | **user_id 分库分表(2库×4表)** |
 
-> 单库建表脚本见 [`docs/ddl.sql`](docs/ddl.sql)（开发环境）
-> 分库分表建表脚本见 [`docs/ddl-sharding.sql`](docs/ddl-sharding.sql)（生产环境，2库×4表共32张物理表）
+> 单库建表脚本见 [`docs/database/ddl.sql`](docs/database/ddl.sql)（开发环境）
+> 分库分表建表脚本见 [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql)（生产环境，2库×4表共32张物理表）
 
 ### 表关系
 
@@ -196,13 +197,13 @@ component_user_comment_index（用户索引，独立维度，不直接关联主�
 
 **方案 A：单库模式（开发环境）**
 ```bash
-mysql -u root -p < docs/ddl.sql
+mysql -u root -p < docs/database/ddl.sql
 ```
 
 **方案 B：分库分表模式（生产环境）**
 ```bash
 # 创建 2 个数据库，共 32 张物理分片表
-mysql -u root -p < docs/ddl-sharding.sql
+mysql -u root -p < docs/database/ddl-sharding.sql
 ```
 
 > 分片策略：2库 × 4表，评论表按业务类型分库、用户ID分表；回复表按评论ID分库分表。
@@ -242,7 +243,7 @@ curl -X POST "http://localhost:8080/api/comment/create" \
 | [`docs/评论平台系统设计技术方案.md`](docs/评论平台系统设计技术方案.md) | 完整技术方案，含需求分析、接口设计、数据库设计、缓存设计、分库分表设计 |
 | [`docs/评论模块源码结构说明.md`](docs/评论模块源码结构说明.md) | 源码结构、接口分布、关键流程伪代码、面试讲解顺序 |
 | [`docs/评论系统关键问题拷打点.md`](docs/评论系统关键问题拷打点.md) | 面试高频追问及回答：分片键选择、热点数据、表结构设计、高并发更新 |
-| [`docs/ddl-sharding.sql`](docs/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，共32张物理表） |
+| [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，共32张物理表） |
 
 ---
 
