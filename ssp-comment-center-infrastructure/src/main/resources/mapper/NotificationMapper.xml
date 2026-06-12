@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssp.comment.dao.mapper.NotificationMapper">
+
+    <resultMap id="BaseResultMap" type="com.ssp.comment.dao.pojo.NotificationPO">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="type" column="type"/>
+        <result property="subjectId" column="subject_id"/>
+        <result property="subjectType" column="subject_type"/>
+        <result property="actorId" column="actor_id"/>
+        <result property="commentObjectId" column="comment_object_id"/>
+        <result property="commentType" column="comment_type"/>
+        <result property="content" column="content"/>
+        <result property="isRead" column="is_read"/>
+        <result property="isDelete" column="is_delete"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, user_id, type, subject_id, subject_type, actor_id, comment_object_id, comment_type,
+        content, is_read, is_delete, create_time, update_time
+    </sql>
+
+    <insert id="insertSelective">
+        insert into component_notification
+        (id, user_id, type, subject_id, subject_type, actor_id, comment_object_id, comment_type,
+         content, is_read, is_delete, create_time, update_time)
+        values
+        (#{id}, #{userId}, #{type}, #{subjectId}, #{subjectType}, #{actorId}, #{commentObjectId}, #{commentType},
+         #{content}, #{isRead}, #{isDelete}, #{createTime}, #{updateTime})
+    </insert>
+
+    <select id="countUnread" resultType="long">
+        select count(1)
+        from component_notification
+        where user_id = #{userId}
+          and is_read = 0
+          and is_delete = 0
+    </select>
+
+    <select id="countByUser" resultType="long">
+        select count(1)
+        from component_notification
+        where user_id = #{userId}
+          and is_delete = 0
+    </select>
+
+    <select id="selectPageByUser" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_notification
+        where user_id = #{userId}
+          and is_delete = 0
+        order by create_time desc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <update id="markRead">
+        update component_notification
+        set is_read = 1,
+            update_time = now()
+        where id = #{id}
+          and user_id = #{userId}
+          and is_read = 0
+          and is_delete = 0
+    </update>
+
+    <update id="markAllRead">
+        update component_notification
+        set is_read = 1,
+            update_time = now()
+        where user_id = #{userId}
+          and is_read = 0
+          and is_delete = 0
+    </update>
+</mapper>

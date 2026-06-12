@@ -23,6 +23,9 @@ spring:
   #      - 规模：2库 × 4表 = 8张物理表
   #   5. 审核表 component_comment_audit：
   #      - 不分片，单表存储于默认库 ds_0
+  #   6. 站内通知表 component_notification：
+  #      - 分库分表键：user_id（用户维度，支撑"我的通知"反查）
+  #      - 规模：2库 × 4表 = 8张物理表
   # ============================================
   shardingsphere:
     datasource:
@@ -94,6 +97,17 @@ spring:
               standard:
                 shardingColumn: user_id
                 shardingAlgorithmName: index-table-inline
+          # ---------- 站内通知表 ----------
+          component_notification:
+            actualDataNodes: ds_${0..1}.component_notification_${0..3}
+            databaseStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: notification-db-inline
+            tableStrategy:
+              standard:
+                shardingColumn: user_id
+                shardingAlgorithmName: notification-table-inline
         shardingAlgorithms:
           # 评论表分片算法
           comment-db-inline:
@@ -131,6 +145,15 @@ spring:
             type: INLINE
             props:
               algorithm-expression: component_user_comment_index_${user_id % 4}
+          # 站内通知表分片算法
+          notification-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds_${user_id % 2}
+          notification-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: component_notification_${user_id % 4}
     props:
       sql-show: true
   # ============================================

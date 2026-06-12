@@ -9,7 +9,7 @@ public interface UserCommentIndexMapper {
 
     int insertSelective(UserCommentIndexPO record);
 
-    int updateByUserAndObject(UserCommentIndexPO record);
+    int upsertByUserAndObject(UserCommentIndexPO record);
 
     long countByUser(@Param("userId") Integer userId,
                       @Param("commentType") Integer commentType,
@@ -20,4 +20,9 @@ public interface UserCommentIndexMapper {
                                                @Param("interactionType") Integer interactionType,
                                                @Param("offset") int offset,
                                                @Param("pageSize") int pageSize);
+
+    int markDeleted(@Param("userId") Integer userId,
+                    @Param("commentObjectId") Long commentObjectId,
+                    @Param("commentType") Integer commentType,
+                    @Param("interactionType") Integer interactionType);
 }

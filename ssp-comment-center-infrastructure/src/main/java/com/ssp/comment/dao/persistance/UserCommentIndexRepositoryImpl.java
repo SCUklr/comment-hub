@@ -30,12 +30,14 @@ public class UserCommentIndexRepositoryImpl implements UserCommentIndexRepositor
         po.setLatestTime(java.sql.Timestamp.valueOf(indexEntity.getLatestTime()));
         po.setInteractionCount(indexEntity.getInteractionCount());
         po.setIsDelete(indexEntity.getIsDelete());
-        int rows = userCommentIndexMapper.updateByUserAndObject(po);
-        if (rows == 0) {
-            po.setCreateTime(java.sql.Timestamp.valueOf(indexEntity.getCreateTime()));
-            po.setUpdateTime(java.sql.Timestamp.valueOf(indexEntity.getUpdateTime()));
-            userCommentIndexMapper.insertSelective(po);
-        }
+        po.setCreateTime(java.sql.Timestamp.valueOf(indexEntity.getCreateTime()));
+        po.setUpdateTime(java.sql.Timestamp.valueOf(indexEntity.getUpdateTime()));
+        userCommentIndexMapper.upsertByUserAndObject(po);
+    }
+
+    @Override
+    public int markDeleted(Integer userId, Long commentObjectId, Integer commentType, Integer interactionType) {
+        return userCommentIndexMapper.markDeleted(userId, commentObjectId, commentType, interactionType);
     }
 
     @Override

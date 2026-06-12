@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 /**
  * 回复创建事件
  *
- * <p>在回复成功写入数据库并提交事务后发布，用于驱动评论回复数更新、通知发送、热度重算等异步扩展链路。</p>
+ * <p>在回复成功写入数据库并提交事务后发布，用于驱动评论回复数更新、通知发送、热度重算、用户索引更新等异步扩展链路。</p>
  */
 public record ReplyCreatedEvent(
     Long replyId,
@@ -14,5 +14,9 @@ public record ReplyCreatedEvent(
     Integer replyType,
     Integer replyUserId,
     String content,
-    LocalDateTime createTime
+    LocalDateTime createTime,
+    Long commentObjectId,
+    Integer commentType,
+    Integer beRepliedUserId,
+    Integer commentAuthorId
 ) {}

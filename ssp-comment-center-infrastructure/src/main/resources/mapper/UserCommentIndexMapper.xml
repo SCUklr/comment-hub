@@ -34,11 +34,26 @@
          #{latestContent}, #{latestTime}, #{interactionCount}, #{isDelete}, #{createTime}, #{updateTime})
     </insert>
 
-    <update id="updateByUserAndObject">
-        update component_user_comment_index
-        set latest_content = #{latestContent},
-            latest_time = #{latestTime},
+    <insert id="upsertByUserAndObject">
+        insert into component_user_comment_index
+        (id, user_id, comment_object_id, comment_type, interaction_type, target_comment_id, target_reply_id,
+         latest_content, latest_time, interaction_count, is_delete, create_time, update_time)
+        values
+        (#{id}, #{userId}, #{commentObjectId}, #{commentType}, #{interactionType}, #{targetCommentId}, #{targetReplyId},
+         #{latestContent}, #{latestTime}, #{interactionCount}, #{isDelete}, #{createTime}, #{updateTime})
+        on duplicate key update
+            target_comment_id = values(target_comment_id),
+            target_reply_id = values(target_reply_id),
+            latest_content = values(latest_content),
+            latest_time = values(latest_time),
             interaction_count = interaction_count + 1,
+            is_delete = 0,
+            update_time = now()
+    </insert>
+
+    <update id="markDeleted">
+        update component_user_comment_index
+        set is_delete = 1,
             update_time = now()
         where user_id = #{userId}
           and comment_object_id = #{commentObjectId}

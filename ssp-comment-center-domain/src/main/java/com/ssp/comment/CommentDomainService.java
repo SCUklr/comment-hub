@@ -78,7 +78,6 @@ public class CommentDomainService {
         entity.setUpdateTime(LocalDateTime.now());
         commentRepository.save(entity);
 
-        updateUserCommentIndex(userId, commentObjectId, commentType, COMMENT_TARGET_TYPE, entity.getId(), null, content);
         eventPublisher.publishEvent(new CommentCreatedEvent(
             entity.getId(), commentObjectId, commentType, userId, content, entity.getCreateTime()
         ));
@@ -117,15 +116,10 @@ public class CommentDomainService {
         replyRepository.save(entity);
         commentRepository.updateReplyCount(commentId, 1);
 
-        updateUserCommentIndex(userId,
-                parentComment.getCommentObjectId(),
-                parentComment.getCommentType(),
-                REPLY_TARGET_TYPE,
-                commentId,
-                entity.getId(),
-                content);
         eventPublisher.publishEvent(new ReplyCreatedEvent(
-            entity.getId(), commentId, parentId, entity.getReplyType(), userId, content, entity.getCreateTime()
+            entity.getId(), commentId, parentId, entity.getReplyType(), userId, content, entity.getCreateTime(),
+            parentComment.getCommentObjectId(), parentComment.getCommentType(),
+            entity.getBeRepliedUserId(), parentComment.getCommentUserId()
         ));
         return entity;
     }
@@ -142,7 +136,7 @@ public class CommentDomainService {
             }
             commentRepository.updateDeleteMark(id, userId);
             eventPublisher.publishEvent(new CommentDeletedEvent(
-                type, id, comment.getCommentObjectId(), comment.getCommentType(), userId
+                type, id, comment.getCommentObjectId(), comment.getCommentType(), userId, comment.getCommentUserId()
             ));
             return;
         }
@@ -158,7 +152,8 @@ public class CommentDomainService {
             type, id,
             comment != null ? comment.getCommentObjectId() : null,
             comment != null ? comment.getCommentType() : null,
-            userId
+            userId,
+            reply.getReplyUserId()
         ));
     }
 
@@ -274,6 +269,7 @@ public class CommentDomainService {
         Integer newLikeCount = null;
         Long commentObjectId = null;
         Integer commentType = null;
+        Integer targetAuthorId = null;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
@@ -284,6 +280,7 @@ public class CommentDomainService {
             newLikeCount = comment.getLikeCount() + 1;
             commentObjectId = comment.getCommentObjectId();
             commentType = comment.getCommentType();
+            targetAuthorId = comment.getCommentUserId();
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -297,9 +294,10 @@ public class CommentDomainService {
             }
             markUserLiked(userId, targetId, targetType, true);
             newLikeCount = reply.getLikeCount() + 1;
+            targetAuthorId = reply.getReplyUserId();
         }
         eventPublisher.publishEvent(new CommentLikedEvent(
-            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, true
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, true, targetAuthorId
         ));
         return new LikeResult(targetId, targetType, true);
     }
@@ -314,6 +312,7 @@ public class CommentDomainService {
         Integer newLikeCount = null;
         Long commentObjectId = null;
         Integer commentType = null;
+        Integer targetAuthorId = null;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
@@ -324,6 +323,7 @@ public class CommentDomainService {
             newLikeCount = Math.max(comment.getLikeCount() - 1, 0);
             commentObjectId = comment.getCommentObjectId();
             commentType = comment.getCommentType();
+            targetAuthorId = comment.getCommentUserId();
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -337,9 +337,10 @@ public class CommentDomainService {
             }
             markUserLiked(userId, targetId, targetType, false);
             newLikeCount = Math.max(reply.getLikeCount() - 1, 0);
+            targetAuthorId = reply.getReplyUserId();
         }
         eventPublisher.publishEvent(new CommentLikedEvent(
-            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, false
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, false, targetAuthorId
         ));
         return new LikeResult(targetId, targetType, false);
     }
@@ -507,30 +508,6 @@ public class CommentDomainService {
         RScoredSortedSet<Long> scoredSortedSet = redissonClient.getScoredSortedSet(String.format(HOT_COMMENT_KEY, commentObjectId, commentType));
         scoredSortedSet.remove(commentId);
         scoredSortedSet.add(hotScore, commentId);
-    }
-
-    private void updateUserCommentIndex(Integer userId,
-                                        Long commentObjectId,
-                                        Integer commentType,
-                                        Integer interactionType,
-                                        Long targetCommentId,
-                                        Long targetReplyId,
-                                        String latestContent) {
-        UserCommentIndexEntity entity = new UserCommentIndexEntity();
-        entity.setId(SnowflakeIdUtils.nextId());
-        entity.setUserId(userId);
-        entity.setCommentObjectId(commentObjectId);
-        entity.setCommentType(commentType);
-        entity.setInteractionType(interactionType);
-        entity.setTargetCommentId(targetCommentId);
-        entity.setTargetReplyId(targetReplyId);
-        entity.setLatestContent(latestContent);
-        entity.setLatestTime(LocalDateTime.now());
-        entity.setInteractionCount(1);
-        entity.setIsDelete(NORMAL_MARK);
-        entity.setCreateTime(LocalDateTime.now());
-        entity.setUpdateTime(LocalDateTime.now());
-        userCommentIndexRepository.saveOrUpdate(entity);
     }
 
     public Boolean isCommentLiked(Long commentId) {

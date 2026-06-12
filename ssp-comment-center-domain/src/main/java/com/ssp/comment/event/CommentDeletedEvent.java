@@ -10,5 +10,6 @@ public record CommentDeletedEvent(
     Long targetId,
     Long commentObjectId,
     Integer commentType,
-    Integer operatorUserId
+    Integer operatorUserId,
+    Integer targetAuthorId
 ) {}

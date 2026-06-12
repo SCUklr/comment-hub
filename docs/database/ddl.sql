@@ -88,3 +88,22 @@ CREATE TABLE IF NOT EXISTS component_user_comment_index (
     UNIQUE INDEX uk_user_object (user_id, comment_object_id, comment_type, interaction_type),
     INDEX idx_user_time (user_id, latest_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户评论索引表';
+
+-- 6. 站内通知表
+CREATE TABLE IF NOT EXISTS component_notification (
+    id                  BIGINT PRIMARY KEY COMMENT '通知ID',
+    user_id             INT NOT NULL COMMENT '接收人ID',
+    type                INT NOT NULL COMMENT '通知类型: 1回复通知 2点赞通知',
+    subject_id          BIGINT NOT NULL COMMENT '触发对象ID（评论ID/回复ID）',
+    subject_type        INT NOT NULL COMMENT '触发对象类型: 1评论 2回复',
+    actor_id            INT NOT NULL COMMENT '触发者用户ID',
+    comment_object_id   BIGINT NOT NULL COMMENT '评论对象ID',
+    comment_type        INT NOT NULL COMMENT '业务类型',
+    content             VARCHAR(500) COMMENT '内容摘要',
+    is_read             TINYINT DEFAULT 0 COMMENT '是否已读: 0未读 1已读',
+    is_delete           TINYINT DEFAULT 0 COMMENT '是否删除: 0正常 1删除',
+    create_time         DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_read (user_id, is_read),
+    INDEX idx_user_time (user_id, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='站内通知表';
