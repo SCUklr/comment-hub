@@ -5,7 +5,7 @@
 | 模块 | 当前状态 | 说明 |
 |------|----------|------|
 | Sharding-JDBC 分库分表 | ✅ 已实现 | 依赖、application.yml 配置、`CommentShardRouter` 均就位。当前规模：2 库 × 4 表 = 8 张物理表。如需对齐简历中"2 库 16 表"，需将分表数从 4 扩展为 8，并补充建表语句。 |
-| Spring Event 异步事件驱动 | ❌ 未实现 | 代码中无任何 `ApplicationEvent`、`@EventListener`、`publishEvent`、`@EnableAsync` 等，评论/回复/点赞全链路均为同步处理。 |
+| Spring Event 异步事件驱动 | ✅ 已实现 | `ApplicationEventPublisher`、`@EnableAsync`、事件定义、4 个异步监听器均就位；监听器已统一改造为 `@TransactionalEventListener(phase = AFTER_COMMIT)`，确保事务提交后才执行副作用。 |
 
 > 本文档仅针对 **Spring Event + 异步监听器** 给出实现方案；Sharding-JDBC 如需从 8 表扩展为 16 表，可另行补充。
 

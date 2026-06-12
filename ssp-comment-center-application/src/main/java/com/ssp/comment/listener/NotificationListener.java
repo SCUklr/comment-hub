@@ -2,7 +2,8 @@ package com.ssp.comment.listener;
 
 import com.ssp.comment.event.ReplyCreatedEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +17,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class NotificationListener {
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("commentEventExecutor")
-    @EventListener
     public void onReplyCreated(ReplyCreatedEvent event) {
         log.info("[Notification] replyCreated event: replyId={}, commentId={}, replyUserId={}",
                 event.replyId(), event.commentId(), event.replyUserId());

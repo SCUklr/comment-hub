@@ -5,7 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.RScoredSortedSet;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -25,8 +26,8 @@ public class HotScoreUpdateListener {
     @Autowired
     private RedissonClient redissonClient;
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("commentEventExecutor")
-    @EventListener
     public void onCommentLiked(CommentLikedEvent event) {
         if (!Objects.equals(event.targetType(), 1)) {
             return;
