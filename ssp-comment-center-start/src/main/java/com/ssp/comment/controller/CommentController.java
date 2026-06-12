@@ -3,6 +3,7 @@ package com.ssp.comment.controller;
 import com.ssp.comment.CommentBizService;
 import com.ssp.comment.bo.*;
 import com.ssp.comment.common.LoginRequired;
+import com.ssp.comment.entity.CommentAuditEntity;
 import com.ssp.comment.common.Result;
 import com.ssp.comment.common.UserContext;
 import com.ssp.comment.convertor.CommentVOConvertor;
@@ -11,6 +12,8 @@ import com.ssp.comment.vo.resp.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/comment")
@@ -86,6 +89,12 @@ public class CommentController {
     public Result<Void> auditCallback(@RequestBody @Valid CommentAuditCallbackReqVO req) {
         commentBizService.auditCallback(req.getTargetId(), req.getTargetType(), req.getAuditStatus(), req.getAuditReason(), req.getAuditOperator());
         return Result.success();
+    }
+
+    @GetMapping("/audit/history")
+    public Result<CommentAuditHistoryRespVO> auditHistory(@Valid CommentAuditHistoryReqVO req) {
+        List<CommentAuditEntity> list = commentBizService.listAuditHistory(req.getTargetId(), req.getTargetType());
+        return Result.success(CommentVOConvertor.toVO(req.getTargetId(), req.getTargetType(), list));
     }
 
     @GetMapping("/hot")

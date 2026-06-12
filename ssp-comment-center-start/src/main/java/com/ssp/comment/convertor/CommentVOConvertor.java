@@ -1,8 +1,10 @@
 package com.ssp.comment.convertor;
 
 import com.ssp.comment.bo.*;
+import com.ssp.comment.entity.CommentAuditEntity;
 import com.ssp.comment.vo.resp.*;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class CommentVOConvertor {
@@ -63,6 +65,26 @@ public class CommentVOConvertor {
         vo.setTargetId(bo.getTargetId());
         vo.setTargetType(bo.getTargetType());
         vo.setLiked(bo.getLiked());
+        return vo;
+    }
+
+    public static CommentAuditHistoryRespVO toVO(Long targetId, Integer targetType, List<CommentAuditEntity> list) {
+        CommentAuditHistoryRespVO vo = new CommentAuditHistoryRespVO();
+        vo.setTargetId(targetId);
+        vo.setTargetType(targetType);
+        if (list == null) {
+            return vo;
+        }
+        vo.setList(list.stream().map(item -> {
+            CommentAuditHistoryRespVO.AuditItemVO auditItem = new CommentAuditHistoryRespVO.AuditItemVO();
+            auditItem.setId(item.getId());
+            auditItem.setAuditStatus(item.getAuditStatus());
+            auditItem.setAuditContent(item.getAuditContent());
+            auditItem.setAuditReason(item.getAuditReason());
+            auditItem.setAuditOperator(item.getAuditOperator());
+            auditItem.setAuditTime(item.getAuditTime());
+            return auditItem;
+        }).collect(Collectors.toList()));
         return vo;
     }
 

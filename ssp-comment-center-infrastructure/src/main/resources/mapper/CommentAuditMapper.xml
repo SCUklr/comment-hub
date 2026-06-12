@@ -25,4 +25,12 @@
         values
         (#{id}, #{targetId}, #{targetType}, #{auditContent}, #{auditStatus}, #{auditReason}, #{auditOperator}, #{auditTime})
     </insert>
+
+    <select id="selectByTarget" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment_audit
+        where target_id = #{targetId}
+          and target_type = #{targetType}
+        order by audit_time desc
+    </select>
 </mapper>

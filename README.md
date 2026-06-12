@@ -6,7 +6,7 @@
 
 ## 项目简介
 
-`ssp-comment-center` 是一个面向任意内容对象的**通用评论系统**，支持评论、回复（楼中楼）、点赞、热评、审核回调、用户评论历史反查等完整能力。
+`ssp-comment-center` 是一个面向任意内容对象的**通用评论系统**，支持评论、回复（楼中楼）、点赞、热评、审核状态机、站内通知、用户评论历史反查等完整能力。
 
 本项目以 `ssp-geek-commander` 的设计蓝图为基础，**彻底去除私有 Maven 依赖**，从零自研统一返回、分页、参数校验、用户上下文、雪花 ID 生成器等基础组件，实现真正独立可编译、可运行、可讲解的评论中心。
 
@@ -41,8 +41,9 @@ ssp-comment-center/
 │   └── 评论系统关键问题拷打点.md
 ├── ssp-comment-center-start/                  # 启动层
 │   ├── CommentCenterApplication.java          # 启动类
-│   ├── controller/CommentController.java      # 评论主接口
+│   ├── controller/CommentController.java      # 评论主接口 + 审核接口
 │   ├── controller/ReplyController.java        # 回复列表接口
+│   ├── controller/NotificationController.java # 站内通知接口
 │   ├── vo/req/ / vo/resp/                    # 请求/响应VO
 │   ├── convertor/CommentVOConvertor.java      # VO转换器
 │   ├── common/                                # 自研基础组件
@@ -77,7 +78,7 @@ ssp-comment-center/
 
 ## 核心功能
 
-共 **11 个 HTTP 接口**：
+共 **15 个 HTTP 接口**：
 
 | 序号 | 方法 | 路径 | 说明 | 需登录 |
 |------|------|------|------|--------|
@@ -85,19 +86,23 @@ ssp-comment-center/
 | 2 | POST | `/api/comment/delete` | 删除评论 / 回复 | ✅ |
 | 3 | POST | `/api/comment/edit` | 编辑评论 / 回复 | ✅ |
 | 4 | POST | `/api/comment/pin` | 置顶 / 取消置顶评论 | ✅ |
-| 5 | GET | `/api/comment/list` | 评论列表（含 topReplies） | ❌ |
-| 6 | GET | `/api/reply/list` | 回复列表（楼中楼） | ❌ |
+| 5 | GET | `/api/comment/list` | 评论列表（含 topReplies，按审核状态过滤） | ❌ |
+| 6 | GET | `/api/reply/list` | 回复列表（楼中楼，按审核状态过滤） | ❌ |
 | 7 | POST | `/api/comment/like` | 点赞评论 / 回复 | ✅ |
 | 8 | POST | `/api/comment/unlike` | 取消点赞 | ✅ |
 | 9 | POST | `/api/comment/audit/callback` | 审核回调 | ❌ |
-| 10 | GET | `/api/comment/hot` | 热评列表 | ❌ |
-| 11 | GET | `/api/comment/my/list` | 我评论过的内容列表 | ✅ |
+| 10 | GET | `/api/comment/audit/history` | 审核历史查询 | ❌ |
+| 11 | GET | `/api/comment/hot` | 热评列表 | ❌ |
+| 12 | GET | `/api/comment/my/list` | 我评论过的内容列表 | ✅ |
+| 13 | GET | `/api/notification/list` | 我的通知列表 | ✅ |
+| 14 | POST | `/api/notification/read` | 标记单条通知已读 | ✅ |
+| 15 | POST | `/api/notification/read/all` | 标记全部通知已读 | ✅ |
 
 ---
 
 ## 数据库设计
 
-共 **5 张核心表**：
+共 **6 张核心表**：
 
 | 表名 | 职责 | 分片策略 |
 |------|------|--------|
@@ -106,9 +111,10 @@ ssp-comment-center/
 | `component_comment_like` | 点赞记录表 | **user_id 分库分表(2库×4表)** |
 | `component_comment_audit` | 审核记录表 | 不分片，单表存储于默认库 |
 | `component_user_comment_index` | 用户评论索引表 | **user_id 分库分表(2库×4表)** |
+| `component_notification` | 站内通知表 | **user_id 分库分表(2库×4表)** |
 
 > 单库建表脚本见 [`docs/database/ddl.sql`](docs/database/ddl.sql)（开发环境）
-> 分库分表建表脚本见 [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql)（生产环境，2库×4表共32张物理表）
+> 分库分表建表脚本见 [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql)（生产环境，5 张分片表各 2库×4表，共 40 张物理表；审核表为单表，合计 41 张物理表）
 
 ### 表关系
 
@@ -126,6 +132,7 @@ component_comment_reply（回复 / 楼中楼）
 component_comment_like（点赞）  component_comment_audit（审核）
 
 component_user_comment_index（用户索引，独立维度，不直接关联主表）
+component_notification（站内通知，按接收人分片）
 ```
 
 ---
@@ -155,10 +162,11 @@ component_user_comment_index（用户索引，独立维度，不直接关联主�
 | 回复表 | `comment_id`（评论ID） | `comment_id`（评论ID） | 2库 × 4表 |
 | 点赞表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
 | 用户索引表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
+| 站内通知表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
 
 - 评论表按业务类型分库，实现不同业务线数据隔离
 - 回复表按评论ID分片，确保同一评论的楼中楼数据落在同一分片，查询命中单分片
-- 点赞表和用户索引表按用户ID分片，支撑高频用户维度反查命中单分片
+- 点赞表、用户索引表、站内通知表按用户ID分片，支撑高频用户维度反查命中单分片
 - 配置集中管理于 `application.yml`，业务代码面向逻辑表开发，零侵入
 
 > 源码层通过 `CommentShardRouter` 显式体现路由思路，与 ShardingSphere INLINE 算法保持一致，便于面试讲解。
@@ -251,7 +259,7 @@ curl -X POST "http://localhost:8080/api/comment/create" \
 
 - **设计蓝图来源**：`ssp-geek-commander`（评论中心设计项目）
 - **区别**：`ssp-comment-center` 彻底去除 `com.ssp.common` 等私有依赖，自研全部基础组件，实现真正独立可运行
-- **保留内容**：11个接口、DDD四层架构、5张核心表、分库分表路由逻辑、Redis缓存结构、统一目标模型
+- **保留内容**：15个接口、DDD四层架构、6张核心表、分库分表路由逻辑、Redis缓存结构、统一目标模型、Spring Event 异步事件驱动
 
 ---
 

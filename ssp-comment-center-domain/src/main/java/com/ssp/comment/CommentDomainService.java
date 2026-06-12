@@ -77,6 +77,7 @@ public class CommentDomainService {
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         commentRepository.save(entity);
+        savePendingAuditRecord(entity.getId(), COMMENT_TARGET_TYPE, content);
 
         eventPublisher.publishEvent(new CommentCreatedEvent(
             entity.getId(), commentObjectId, commentType, userId, content, entity.getCreateTime()
@@ -115,6 +116,7 @@ public class CommentDomainService {
         entity.setUpdateTime(LocalDateTime.now());
         replyRepository.save(entity);
         commentRepository.updateReplyCount(commentId, 1);
+        savePendingAuditRecord(entity.getId(), REPLY_TARGET_TYPE, content);
 
         eventPublisher.publishEvent(new ReplyCreatedEvent(
             entity.getId(), commentId, parentId, entity.getReplyType(), userId, content, entity.getCreateTime(),
@@ -210,8 +212,8 @@ public class CommentDomainService {
         int safePage = safePage(page);
         int safePageSize = safePageSize(pageSize);
         int offset = (safePage - 1) * safePageSize;
-        long total = commentRepository.countByObject(commentObjectId, commentType);
-        List<CommentEntity> comments = commentRepository.queryPageByObject(commentObjectId, commentType, offset, safePageSize);
+        long total = commentRepository.countByObject(commentObjectId, commentType, currentUserId);
+        List<CommentEntity> comments = commentRepository.queryPageByObject(commentObjectId, commentType, offset, safePageSize, currentUserId);
         if (CollectionUtils.isEmpty(comments)) {
             return new PageResult<>(total, safePage, safePageSize, comments);
         }
@@ -219,7 +221,7 @@ public class CommentDomainService {
         batchFillCommentLikeCount(commentObjectId, comments, currentUserId);
 
         List<Long> commentIds = comments.stream().map(CommentEntity::getId).collect(Collectors.toList());
-        List<ReplyEntity> replies = replyRepository.queryByCommentIdsAndParent(commentIds, 0L);
+        List<ReplyEntity> replies = replyRepository.queryByCommentIdsAndParent(commentIds, 0L, currentUserId);
         batchFillReplyLikeCount(commentObjectId, replies, currentUserId);
         Map<Long, List<ReplyEntity>> replyMap = replies.stream()
                 .collect(Collectors.groupingBy(ReplyEntity::getCommentId));
@@ -249,8 +251,8 @@ public class CommentDomainService {
         int safePage = safePage(page);
         int safePageSize = safePageSize(pageSize);
         int offset = (safePage - 1) * safePageSize;
-        long total = replyRepository.countByCommentAndParent(commentId, parentReplyId == null ? 0L : parentReplyId);
-        List<ReplyEntity> replies = replyRepository.queryPageByCommentAndParent(commentId, parentReplyId == null ? 0L : parentReplyId, offset, safePageSize);
+        long total = replyRepository.countByCommentAndParent(commentId, parentReplyId == null ? 0L : parentReplyId, currentUserId);
+        List<ReplyEntity> replies = replyRepository.queryPageByCommentAndParent(commentId, parentReplyId == null ? 0L : parentReplyId, offset, safePageSize, currentUserId);
         CommentEntity comment = commentRepository.queryById(commentId);
         if (comment != null) {
             replyLikedCarrier.clear();
@@ -351,11 +353,13 @@ public class CommentDomainService {
                                     Integer auditStatus,
                                     String auditReason,
                                     Long auditOperator) {
+        String contentSnapshot = queryTargetContent(targetId, targetType);
+
         CommentAuditEntity auditEntity = new CommentAuditEntity();
         auditEntity.setId(SnowflakeIdUtils.nextId());
         auditEntity.setTargetId(targetId);
         auditEntity.setTargetType(targetType);
-        auditEntity.setAuditContent(StringUtils.defaultString(auditReason));
+        auditEntity.setAuditContent(StringUtils.defaultString(contentSnapshot));
         auditEntity.setAuditStatus(auditStatus);
         auditEntity.setAuditReason(StringUtils.defaultString(auditReason));
         auditEntity.setAuditOperator(auditOperator == null ? 0L : auditOperator);
@@ -390,14 +394,21 @@ public class CommentDomainService {
             Map<Long, CommentEntity> commentMap = comments.stream().collect(Collectors.toMap(CommentEntity::getId, item -> item, (a, b) -> a));
             comments = hotIds.stream().map(commentMap::get).filter(Objects::nonNull).collect(Collectors.toList());
         } else {
-            comments = commentRepository.queryHotPageByObject(commentObjectId, commentType, offset, safePageSize);
+            comments = commentRepository.queryHotPageByObject(commentObjectId, commentType, offset, safePageSize, currentUserId);
             for (CommentEntity comment : comments) {
                 updateHotCommentScore(commentObjectId, commentType, comment.getId(), comment.getLikeCount());
             }
         }
         batchFillCommentLikeCount(commentObjectId, comments, currentUserId);
-        long total = commentRepository.countByObject(commentObjectId, commentType);
+        long total = commentRepository.countByObject(commentObjectId, commentType, currentUserId);
         return new PageResult<>(total, safePage, safePageSize, comments);
+    }
+
+    public List<CommentAuditEntity> queryAuditHistory(Long targetId, Integer targetType) {
+        if (targetId == null || targetType == null) {
+            throw new BizException("目标ID和目标类型不能为空");
+        }
+        return commentAuditRepository.queryByTarget(targetId, targetType);
     }
 
     public PageResult<UserCommentIndexEntity> queryMyComments(Integer userId,
@@ -508,6 +519,28 @@ public class CommentDomainService {
         RScoredSortedSet<Long> scoredSortedSet = redissonClient.getScoredSortedSet(String.format(HOT_COMMENT_KEY, commentObjectId, commentType));
         scoredSortedSet.remove(commentId);
         scoredSortedSet.add(hotScore, commentId);
+    }
+
+    private void savePendingAuditRecord(Long targetId, Integer targetType, String content) {
+        CommentAuditEntity auditEntity = new CommentAuditEntity();
+        auditEntity.setId(SnowflakeIdUtils.nextId());
+        auditEntity.setTargetId(targetId);
+        auditEntity.setTargetType(targetType);
+        auditEntity.setAuditContent(StringUtils.defaultString(content));
+        auditEntity.setAuditStatus(0);
+        auditEntity.setAuditReason("待审核");
+        auditEntity.setAuditOperator(0L);
+        auditEntity.setAuditTime(LocalDateTime.now());
+        commentAuditRepository.save(auditEntity);
+    }
+
+    private String queryTargetContent(Long targetId, Integer targetType) {
+        if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
+            CommentEntity comment = commentRepository.queryById(targetId);
+            return comment != null ? comment.getContent() : null;
+        }
+        ReplyEntity reply = replyRepository.queryById(targetId);
+        return reply != null ? reply.getContent() : null;
     }
 
     public Boolean isCommentLiked(Long commentId) {

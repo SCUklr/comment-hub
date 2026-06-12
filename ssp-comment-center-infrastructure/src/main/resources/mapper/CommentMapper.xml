@@ -47,6 +47,7 @@
             #{item}
         </foreach>
           and is_delete = 0
+          and audit_status = 1
     </select>
 
     <select id="countByObject" resultType="long">
@@ -55,6 +56,7 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
+          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status != 1))
     </select>
 
     <select id="selectPageByObject" resultMap="BaseResultMap">
@@ -63,6 +65,7 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
+          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status != 1))
         order by sort desc, create_time desc
         limit #{offset}, #{pageSize}
     </select>
@@ -73,6 +76,7 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
+          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status != 1))
         order by sort desc, like_count desc, create_time desc
         limit #{offset}, #{pageSize}
     </select>

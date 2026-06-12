@@ -48,19 +48,19 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
-    public long countByObject(Long commentObjectId, Integer commentType) {
-        return commentMapper.countByObject(commentObjectId, commentType);
+    public long countByObject(Long commentObjectId, Integer commentType, Integer currentUserId) {
+        return commentMapper.countByObject(commentObjectId, commentType, currentUserId);
     }
 
     @Override
-    public List<CommentEntity> queryPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize) {
-        List<CommentPO> pos = commentMapper.selectPageByObject(commentObjectId, commentType, offset, pageSize);
+    public List<CommentEntity> queryPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize, Integer currentUserId) {
+        List<CommentPO> pos = commentMapper.selectPageByObject(commentObjectId, commentType, offset, pageSize, currentUserId);
         return pos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 
     @Override
-    public List<CommentEntity> queryHotPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize) {
-        List<CommentPO> pos = commentMapper.selectHotPageByObject(commentObjectId, commentType, offset, pageSize);
+    public List<CommentEntity> queryHotPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize, Integer currentUserId) {
+        List<CommentPO> pos = commentMapper.selectHotPageByObject(commentObjectId, commentType, offset, pageSize, currentUserId);
         return pos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 

@@ -12,11 +12,11 @@ public interface CommentRepository {
 
     List<CommentEntity> queryByIds(List<Long> ids);
 
-    long countByObject(Long commentObjectId, Integer commentType);
+    long countByObject(Long commentObjectId, Integer commentType, Integer currentUserId);
 
-    List<CommentEntity> queryPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize);
+    List<CommentEntity> queryPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize, Integer currentUserId);
 
-    List<CommentEntity> queryHotPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize);
+    List<CommentEntity> queryHotPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize, Integer currentUserId);
 
     void updateDeleteMark(Long id, Integer operatorId);
 

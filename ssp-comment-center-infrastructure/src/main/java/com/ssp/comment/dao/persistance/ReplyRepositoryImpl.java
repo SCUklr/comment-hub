@@ -42,19 +42,19 @@ public class ReplyRepositoryImpl implements ReplyRepository {
     }
 
     @Override
-    public long countByCommentAndParent(Long commentId, Long parentReplyId) {
-        return replyMapper.countByCommentAndParent(commentId, parentReplyId);
+    public long countByCommentAndParent(Long commentId, Long parentReplyId, Integer currentUserId) {
+        return replyMapper.countByCommentAndParent(commentId, parentReplyId, currentUserId);
     }
 
     @Override
-    public List<ReplyEntity> queryPageByCommentAndParent(Long commentId, Long parentReplyId, int offset, int pageSize) {
-        List<ReplyPO> pos = replyMapper.selectPageByCommentAndParent(commentId, parentReplyId, offset, pageSize);
+    public List<ReplyEntity> queryPageByCommentAndParent(Long commentId, Long parentReplyId, int offset, int pageSize, Integer currentUserId) {
+        List<ReplyPO> pos = replyMapper.selectPageByCommentAndParent(commentId, parentReplyId, offset, pageSize, currentUserId);
         return pos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 
     @Override
-    public List<ReplyEntity> queryByCommentIdsAndParent(List<Long> commentIds, Long parentReplyId) {
-        List<ReplyPO> pos = replyMapper.selectByCommentIdsAndParent(commentIds, parentReplyId);
+    public List<ReplyEntity> queryByCommentIdsAndParent(List<Long> commentIds, Long parentReplyId, Integer currentUserId) {
+        List<ReplyPO> pos = replyMapper.selectByCommentIdsAndParent(commentIds, parentReplyId, currentUserId);
         return pos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 

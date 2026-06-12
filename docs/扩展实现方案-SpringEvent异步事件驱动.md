@@ -148,7 +148,7 @@ public class AsyncEventConfig {
 public CommentEntity createComment(...) {
     // ... 现有写库逻辑
     commentRepository.save(entity);
-    updateUserCommentIndex(...);  // 可选：保留同步或也改为异步
+    // updateUserCommentIndex 已改为异步，由 UserIndexUpdateListener 消费事件后维护
     
     // 发布事件（事务提交后执行）
     eventPublisher.publishEvent(new CommentCreatedEvent(
@@ -254,11 +254,11 @@ public class UserIndexUpdateListener {
     @Autowired
     private UserCommentIndexRepository userCommentIndexRepository;
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async("commentEventExecutor")
-    @EventListener
     public void onCommentCreated(CommentCreatedEvent event) {
         // 异步写入/更新用户评论索引
-        // 若主流程中已同步写入，可保留同步；此处作为削峰或补偿手段
+        userCommentIndexRepository.saveOrUpdate(buildEntity(event));
     }
 }
 ```

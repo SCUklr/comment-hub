@@ -11,15 +11,19 @@ public interface ReplyMapper {
 
     ReplyPO selectOneById(@Param("id") Long id);
 
-    long countByCommentAndParent(@Param("commentId") Long commentId, @Param("parentReplyId") Long parentReplyId);
+    long countByCommentAndParent(@Param("commentId") Long commentId,
+                                 @Param("parentReplyId") Long parentReplyId,
+                                 @Param("currentUserId") Integer currentUserId);
 
     List<ReplyPO> selectPageByCommentAndParent(@Param("commentId") Long commentId,
                                                 @Param("parentReplyId") Long parentReplyId,
                                                 @Param("offset") int offset,
-                                                @Param("pageSize") int pageSize);
+                                                @Param("pageSize") int pageSize,
+                                                @Param("currentUserId") Integer currentUserId);
 
     List<ReplyPO> selectByCommentIdsAndParent(@Param("commentIds") List<Long> commentIds,
-                                               @Param("parentReplyId") Long parentReplyId);
+                                               @Param("parentReplyId") Long parentReplyId,
+                                               @Param("currentUserId") Integer currentUserId);
 
     int updateDeleteMark(@Param("id") Long id, @Param("isDelete") Integer isDelete);
 

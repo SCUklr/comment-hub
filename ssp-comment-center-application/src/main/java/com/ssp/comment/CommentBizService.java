@@ -1,6 +1,7 @@
 package com.ssp.comment;
 
 import com.ssp.comment.bo.*;
+import com.ssp.comment.entity.CommentAuditEntity;
 import com.ssp.comment.entity.CommentEntity;
 import com.ssp.comment.entity.ReplyEntity;
 import com.ssp.comment.entity.UserCommentIndexEntity;
@@ -156,6 +157,10 @@ public class CommentBizService {
                               String auditReason,
                               Long auditOperator) {
         commentDomainService.handleAuditCallback(targetId, targetType, auditStatus, auditReason, auditOperator);
+    }
+
+    public List<CommentAuditEntity> listAuditHistory(Long targetId, Integer targetType) {
+        return commentDomainService.queryAuditHistory(targetId, targetType);
     }
 
     public CommentListBO listHotComments(Long commentObjectId,

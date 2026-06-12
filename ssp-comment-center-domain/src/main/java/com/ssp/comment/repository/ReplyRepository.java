@@ -10,11 +10,11 @@ public interface ReplyRepository {
 
     ReplyEntity queryById(Long id);
 
-    long countByCommentAndParent(Long commentId, Long parentReplyId);
+    long countByCommentAndParent(Long commentId, Long parentReplyId, Integer currentUserId);
 
-    List<ReplyEntity> queryPageByCommentAndParent(Long commentId, Long parentReplyId, int offset, int pageSize);
+    List<ReplyEntity> queryPageByCommentAndParent(Long commentId, Long parentReplyId, int offset, int pageSize, Integer currentUserId);
 
-    List<ReplyEntity> queryByCommentIdsAndParent(List<Long> commentIds, Long parentReplyId);
+    List<ReplyEntity> queryByCommentIdsAndParent(List<Long> commentIds, Long parentReplyId, Integer currentUserId);
 
     void updateDeleteMark(Long id, Integer operatorId);
 

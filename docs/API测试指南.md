@@ -430,20 +430,24 @@ curl -s -X POST http://localhost:8080/api/comment/audit/callback \
 ## 四、完整测试流程（建议顺序）
 
 ```
-1. 创建评论（用户 1）→ 记录 commentId
-2. 回复评论（用户 2）→ 记录 replyId
-3. 查询评论列表（无登录）→ 验证 replyCount=1
-4. 点赞评论（用户 3）→ 验证 liked=true
-5. 查询评论列表 → 验证 likeCount=1
-6. 取消点赞（用户 3）→ 验证 liked=false
-7. 查询热评列表 → 验证排序
-8. 查询回复列表 → 验证回复数据
-9. 查询"我的评论"（用户 1）→ 验证互动记录
-10. 编辑评论（用户 1）→ 验证内容变更
-11. 置顶评论（用户 1）→ 验证 sort 变化
-12. 审核回调 → 验证 auditStatus 变更
-13. 删除评论（用户 1）→ 验证列表为空
+1. 创建评论（用户 1）→ 记录 commentId，此时 audit_status=0
+2. 审核回调（auditStatus=1）→ 评论对所有人可见
+3. 回复评论（用户 2）→ 记录 replyId，此时 reply 也进入待审核
+4. 审核回调回复（auditStatus=1）
+5. 查询评论列表（无登录）→ 验证 replyCount=1
+6. 点赞评论（用户 3）→ 验证 liked=true，用户 1 收到点赞通知
+7. 查询评论列表 → 验证 likeCount=1
+8. 取消点赞（用户 3）→ 验证 liked=false
+9. 查询热评列表 → 验证排序
+10. 查询回复列表 → 验证回复数据
+11. 查询"我的评论"（用户 1）→ 验证互动记录
+12. 查询"我的通知"（用户 1）→ 验证收到点赞/回复通知
+13. 编辑评论（用户 1）→ 验证内容变更
+14. 置顶评论（用户 1）→ 验证 sort 变化
+15. 删除评论（用户 1）→ 验证列表为空
 ```
+
+> 注意：未调用审核回调前，非作者用户调用 `/api/comment/list` 不会看到新创建的评论/回复。
 
 ---
 
@@ -457,3 +461,81 @@ curl -s -X POST http://localhost:8080/api/comment/audit/callback \
 | `Can't connect to local MySQL` | MySQL 容器未启动 | `docker start mysql-comment` |
 | `Connection refused` (Redis) | Redis 未启动 | `redis-server --daemonize yes --port 6379` |
 | 端口 8080 被占用 | 已有进程占用 | `lsof -i :8080` 找到 PID 后 `kill -9 <PID>` |
+
+---
+
+## 六、站内通知测试
+
+### 6.1 查询我的通知列表
+
+```bash
+curl -s "http://localhost:8080/api/notification/list?page=1&pageSize=10" \
+  -H "X-User-Id: 1"
+```
+
+### 6.2 标记单条通知已读
+
+```bash
+curl -s -X POST http://localhost:8080/api/notification/read \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{
+    "id": 720209260377591900
+  }'
+```
+
+### 6.3 标记全部通知已读
+
+```bash
+curl -s -X POST http://localhost:8080/api/notification/read/all \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1"
+```
+
+---
+
+## 七、审核状态机测试
+
+### 7.1 创建评论后自动进入待审核
+
+创建评论后，`component_comment_audit` 表会自动生成一条 `audit_status=0` 的记录。
+
+```bash
+curl -s -X POST http://localhost:8080/api/comment/create \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: 1" \
+  -d '{
+    "type": 1,
+    "commentObjectId": 10001,
+    "commentType": 1,
+    "content": "待审核测试评论"
+  }'
+```
+
+### 7.2 审核回调
+
+```bash
+curl -s -X POST http://localhost:8080/api/comment/audit/callback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "targetId": 720209260377591808,
+    "targetType": 1,
+    "auditStatus": 1,
+    "auditReason": "审核通过",
+    "auditOperator": 999
+  }'
+```
+
+### 7.3 查询审核历史
+
+```bash
+curl -s "http://localhost:8080/api/comment/audit/history?targetId=720209260377591808&targetType=1"
+```
+
+### 7.4 审核状态过滤说明
+
+- 评论/回复创建后默认 `audit_status=0`（待审核），**非作者用户无法在未审核通过前看到**。
+- 调用审核回调将 `auditStatus` 设为 `1` 后，未登录用户才能在列表中查看。
+- 作者（`comment_user_id` / `reply_user_id` 与当前登录用户一致）始终可以看到自己的待审核/被拒绝内容。
+
+

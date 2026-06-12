@@ -13,17 +13,21 @@ public interface CommentMapper {
 
     List<CommentPO> selectByIds(@Param("idList") List<Long> idList);
 
-    long countByObject(@Param("commentObjectId") Long commentObjectId, @Param("commentType") Integer commentType);
+    long countByObject(@Param("commentObjectId") Long commentObjectId,
+                       @Param("commentType") Integer commentType,
+                       @Param("currentUserId") Integer currentUserId);
 
     List<CommentPO> selectPageByObject(@Param("commentObjectId") Long commentObjectId,
                                       @Param("commentType") Integer commentType,
                                       @Param("offset") int offset,
-                                      @Param("pageSize") int pageSize);
+                                      @Param("pageSize") int pageSize,
+                                      @Param("currentUserId") Integer currentUserId);
 
     List<CommentPO> selectHotPageByObject(@Param("commentObjectId") Long commentObjectId,
                                           @Param("commentType") Integer commentType,
                                           @Param("offset") int offset,
-                                          @Param("pageSize") int pageSize);
+                                          @Param("pageSize") int pageSize,
+                                          @Param("currentUserId") Integer currentUserId);
 
     int updateDeleteMark(@Param("id") Long id, @Param("isDelete") Integer isDelete);
 
