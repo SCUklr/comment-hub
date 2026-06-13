@@ -45,7 +45,12 @@
         where comment_id = #{commentId}
           and parent_reply_id = #{parentReplyId}
           and is_delete = 0
-          and (audit_status = 1 or (reply_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (reply_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
     </select>
 
     <select id="selectPageByCommentAndParent" resultMap="BaseResultMap">
@@ -54,7 +59,12 @@
         where comment_id = #{commentId}
           and parent_reply_id = #{parentReplyId}
           and is_delete = 0
-          and (audit_status = 1 or (reply_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (reply_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
         order by create_time asc
         limit #{offset}, #{pageSize}
     </select>
@@ -68,7 +78,24 @@
         </foreach>
           and parent_reply_id = #{parentReplyId}
           and is_delete = 0
-          and (audit_status = 1 or (reply_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (reply_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
+        order by create_time asc
+    </select>
+
+    <select id="selectByCommentIdsForAudit" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment_reply
+        where comment_id in
+        <foreach collection="commentIds" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+          and parent_reply_id = 0
+          and is_delete = 0
         order by create_time asc
     </select>
 

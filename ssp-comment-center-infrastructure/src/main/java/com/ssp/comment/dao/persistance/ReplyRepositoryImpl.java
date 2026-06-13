@@ -59,6 +59,12 @@ public class ReplyRepositoryImpl implements ReplyRepository {
     }
 
     @Override
+    public List<ReplyEntity> queryByCommentIdsForAudit(List<Long> commentIds) {
+        List<ReplyPO> pos = replyMapper.selectByCommentIdsForAudit(commentIds);
+        return pos.stream().map(this::toEntity).collect(Collectors.toList());
+    }
+
+    @Override
     public void updateDeleteMark(Long id, Integer operatorId) {
         replyMapper.updateDeleteMark(id, 1);
     }

@@ -24,6 +24,7 @@ public class ReplyListBO {
         private Integer replyUserId;
         private Integer beRepliedUserId;
         private Integer likeCount;
+        private Integer auditStatus;
         private Boolean liked;
         private LocalDateTime createTime;
         private LocalDateTime updateTime;

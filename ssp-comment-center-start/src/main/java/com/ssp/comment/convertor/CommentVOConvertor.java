@@ -110,6 +110,7 @@ public class CommentVOConvertor {
         vo.setSort(bo.getSort());
         vo.setReplyCount(bo.getReplyCount());
         vo.setLikeCount(bo.getLikeCount());
+        vo.setAuditStatus(bo.getAuditStatus());
         vo.setLiked(bo.getLiked());
         vo.setCreateTime(bo.getCreateTime());
         vo.setUpdateTime(bo.getUpdateTime());
@@ -131,6 +132,7 @@ public class CommentVOConvertor {
         vo.setReplyUserId(bo.getReplyUserId());
         vo.setBeRepliedUserId(bo.getBeRepliedUserId());
         vo.setLikeCount(bo.getLikeCount());
+        vo.setAuditStatus(bo.getAuditStatus());
         vo.setLiked(bo.getLiked());
         vo.setCreateTime(bo.getCreateTime());
         vo.setUpdateTime(bo.getUpdateTime());
@@ -149,6 +151,7 @@ public class CommentVOConvertor {
         vo.setReplyUserId(bo.getReplyUserId());
         vo.setBeRepliedUserId(bo.getBeRepliedUserId());
         vo.setLikeCount(bo.getLikeCount());
+        vo.setAuditStatus(bo.getAuditStatus());
         vo.setLiked(bo.getLiked());
         vo.setCreateTime(bo.getCreateTime());
         vo.setUpdateTime(bo.getUpdateTime());

@@ -27,12 +27,6 @@ application-local.yml
 application-dev.yml
 application-prod.yml
 
-# Node (if any frontend)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
 # Test coverage
 *.exec
 jacoco/

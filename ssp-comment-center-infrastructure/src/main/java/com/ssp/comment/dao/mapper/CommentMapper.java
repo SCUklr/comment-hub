@@ -29,6 +29,14 @@ public interface CommentMapper {
                                           @Param("pageSize") int pageSize,
                                           @Param("currentUserId") Integer currentUserId);
 
+    long countForAudit(@Param("commentObjectId") Long commentObjectId,
+                       @Param("commentType") Integer commentType);
+
+    List<CommentPO> selectPageForAudit(@Param("commentObjectId") Long commentObjectId,
+                                       @Param("commentType") Integer commentType,
+                                       @Param("offset") int offset,
+                                       @Param("pageSize") int pageSize);
+
     int updateDeleteMark(@Param("id") Long id, @Param("isDelete") Integer isDelete);
 
     int updateContent(@Param("id") Long id, @Param("content") String content, @Param("images") String images);

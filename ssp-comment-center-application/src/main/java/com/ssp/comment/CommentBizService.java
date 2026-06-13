@@ -1,16 +1,23 @@
 package com.ssp.comment;
 
-import com.ssp.comment.bo.*;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ssp.comment.bo.CommentCreateBO;
+import com.ssp.comment.bo.CommentEditBO;
+import com.ssp.comment.bo.CommentLikeBO;
+import com.ssp.comment.bo.CommentListBO;
+import com.ssp.comment.bo.MyCommentListBO;
+import com.ssp.comment.bo.ReplyListBO;
 import com.ssp.comment.entity.CommentAuditEntity;
 import com.ssp.comment.entity.CommentEntity;
 import com.ssp.comment.entity.ReplyEntity;
 import com.ssp.comment.entity.UserCommentIndexEntity;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
@@ -109,6 +116,7 @@ public class CommentBizService {
             item.setSort(comment.getSort());
             item.setReplyCount(comment.getReplyCount());
             item.setLikeCount(comment.getLikeCount());
+            item.setAuditStatus(comment.getAuditStatus());
             item.setLiked(commentDomainService.isCommentLiked(comment.getId()));
             item.setCreateTime(comment.getCreateTime());
             item.setUpdateTime(comment.getUpdateTime());
@@ -163,6 +171,38 @@ public class CommentBizService {
         return commentDomainService.queryAuditHistory(targetId, targetType);
     }
 
+    public CommentListBO listCommentsForAudit(Long commentObjectId,
+                                              Integer commentType,
+                                              Integer page,
+                                              Integer pageSize,
+                                              Integer topReplyLimit) {
+        CommentDomainService.PageResult<CommentEntity> result = commentDomainService.queryCommentPageForAudit(
+                commentObjectId, commentType, page, pageSize, topReplyLimit);
+        CommentListBO bo = new CommentListBO();
+        bo.setTotal(result.total());
+        bo.setPage(result.page());
+        bo.setPageSize(result.pageSize());
+        bo.setList(result.list().stream().map(comment -> {
+            CommentListBO.CommentItemBO item = new CommentListBO.CommentItemBO();
+            item.setId(comment.getId());
+            item.setCommentObjectId(comment.getCommentObjectId());
+            item.setCommentType(comment.getCommentType());
+            item.setContent(comment.getContent());
+            item.setImages(comment.getImages());
+            item.setUserId(comment.getCommentUserId());
+            item.setSort(comment.getSort());
+            item.setReplyCount(comment.getReplyCount());
+            item.setLikeCount(comment.getLikeCount());
+            item.setAuditStatus(comment.getAuditStatus());
+            item.setLiked(commentDomainService.isCommentLiked(comment.getId()));
+            item.setCreateTime(comment.getCreateTime());
+            item.setUpdateTime(comment.getUpdateTime());
+            item.setTopReplies(commentDomainService.topRepliesOf(comment.getId()).stream().map(this::toCommentReplyItemBO).collect(Collectors.toList()));
+            return item;
+        }).collect(Collectors.toList()));
+        return bo;
+    }
+
     public CommentListBO listHotComments(Long commentObjectId,
                                          Integer commentType,
                                          Integer page,
@@ -185,6 +225,7 @@ public class CommentBizService {
             item.setSort(comment.getSort());
             item.setReplyCount(comment.getReplyCount());
             item.setLikeCount(comment.getLikeCount());
+            item.setAuditStatus(comment.getAuditStatus());
             item.setLiked(commentDomainService.isCommentLiked(comment.getId()));
             item.setCreateTime(comment.getCreateTime());
             item.setUpdateTime(comment.getUpdateTime());
@@ -219,6 +260,7 @@ public class CommentBizService {
         item.setReplyUserId(replyEntity.getReplyUserId());
         item.setBeRepliedUserId(replyEntity.getBeRepliedUserId());
         item.setLikeCount(replyEntity.getLikeCount());
+        item.setAuditStatus(replyEntity.getAuditStatus());
         item.setLiked(commentDomainService.isReplyLiked(replyEntity.getId()));
         item.setCreateTime(replyEntity.getCreateTime());
         item.setUpdateTime(replyEntity.getUpdateTime());
@@ -236,6 +278,7 @@ public class CommentBizService {
         item.setReplyUserId(replyEntity.getReplyUserId());
         item.setBeRepliedUserId(replyEntity.getBeRepliedUserId());
         item.setLikeCount(replyEntity.getLikeCount());
+        item.setAuditStatus(replyEntity.getAuditStatus());
         item.setLiked(commentDomainService.isReplyLiked(replyEntity.getId()));
         item.setCreateTime(replyEntity.getCreateTime());
         item.setUpdateTime(replyEntity.getUpdateTime());

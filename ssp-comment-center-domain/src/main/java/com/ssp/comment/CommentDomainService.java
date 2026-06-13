@@ -414,6 +414,44 @@ public class CommentDomainService {
         ));
     }
 
+    public PageResult<CommentEntity> queryCommentPageForAudit(Long commentObjectId,
+                                                              Integer commentType,
+                                                              Integer page,
+                                                              Integer pageSize,
+                                                              Integer topReplyLimit) {
+        validateCommentQuery(commentObjectId, commentType, page, pageSize);
+        commentLikedCarrier.clear();
+        replyLikedCarrier.clear();
+        commentLikeReplyCarrier.clear();
+
+        int safePage = safePage(page);
+        int safePageSize = safePageSize(pageSize);
+        int offset = (safePage - 1) * safePageSize;
+        long total = commentRepository.countForAudit(commentObjectId, commentType);
+        List<CommentEntity> comments = commentRepository.queryPageForAudit(commentObjectId, commentType, offset, safePageSize);
+        if (CollectionUtils.isEmpty(comments)) {
+            return new PageResult<>(total, safePage, safePageSize, comments);
+        }
+
+        batchFillCommentLikeCount(commentObjectId, comments, null);
+
+        List<Long> commentIds = comments.stream().map(CommentEntity::getId).collect(Collectors.toList());
+        List<ReplyEntity> replies = replyRepository.queryByCommentIdsForAudit(commentIds);
+        batchFillReplyLikeCount(commentObjectId, replies, null);
+        Map<Long, List<ReplyEntity>> replyMap = replies.stream()
+                .collect(Collectors.groupingBy(ReplyEntity::getCommentId));
+        int limit = topReplyLimit == null || topReplyLimit <= 0 ? 3 : topReplyLimit;
+        for (CommentEntity comment : comments) {
+            List<ReplyEntity> topReplies = replyMap.getOrDefault(comment.getId(), new ArrayList<>()).stream()
+                    .sorted(Comparator.comparing(ReplyEntity::getCreateTime))
+                    .limit(limit)
+                    .collect(Collectors.toList());
+            comment.setUpdateTime(comment.getUpdateTime());
+            commentLikeReplyCarrier.put(comment.getId(), topReplies);
+        }
+        return new PageResult<>(total, safePage, safePageSize, comments);
+    }
+
     public PageResult<CommentEntity> queryHotComments(Long commentObjectId,
                                                       Integer commentType,
                                                       Integer page,

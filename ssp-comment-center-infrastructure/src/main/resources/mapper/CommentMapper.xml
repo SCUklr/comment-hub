@@ -56,7 +56,12 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
-          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (comment_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
     </select>
 
     <select id="selectPageByObject" resultMap="BaseResultMap">
@@ -65,7 +70,12 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
-          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (comment_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
         order by sort desc, create_time desc
         limit #{offset}, #{pageSize}
     </select>
@@ -76,8 +86,31 @@
         where comment_object_id = #{commentObjectId}
           and comment_type = #{commentType}
           and is_delete = 0
-          and (audit_status = 1 or (comment_user_id = #{currentUserId} and audit_status = 2))
+          and (
+              audit_status = 1
+              <if test="currentUserId != null">
+                  or (comment_user_id = #{currentUserId} and audit_status = 2)
+              </if>
+          )
         order by sort desc, like_count desc, create_time desc
+        limit #{offset}, #{pageSize}
+    </select>
+
+    <select id="countForAudit" resultType="long">
+        select count(1)
+        from component_comment
+        where comment_object_id = #{commentObjectId}
+          and comment_type = #{commentType}
+          and is_delete = 0
+    </select>
+
+    <select id="selectPageForAudit" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where comment_object_id = #{commentObjectId}
+          and comment_type = #{commentType}
+          and is_delete = 0
+        order by sort desc, create_time desc
         limit #{offset}, #{pageSize}
     </select>
 

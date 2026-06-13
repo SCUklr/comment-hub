@@ -18,6 +18,10 @@ public interface CommentRepository {
 
     List<CommentEntity> queryHotPageByObject(Long commentObjectId, Integer commentType, int offset, int pageSize, Integer currentUserId);
 
+    long countForAudit(Long commentObjectId, Integer commentType);
+
+    List<CommentEntity> queryPageForAudit(Long commentObjectId, Integer commentType, int offset, int pageSize);
+
     void updateDeleteMark(Long id, Integer operatorId);
 
     void updateContent(Long id, String content, String images);

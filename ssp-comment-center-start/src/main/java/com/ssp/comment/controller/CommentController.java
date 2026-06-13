@@ -91,6 +91,17 @@ public class CommentController {
         return Result.success();
     }
 
+    @GetMapping("/audit/list")
+    public Result<CommentListRespVO> auditList(@Valid CommentListReqVO req) {
+        CommentListBO bo = commentBizService.listCommentsForAudit(
+                req.getCommentObjectId(),
+                req.getCommentType(),
+                req.getPage(),
+                req.getPageSize(),
+                req.getTopReplyLimit());
+        return Result.success(CommentVOConvertor.toVO(bo));
+    }
+
     @GetMapping("/audit/history")
     public Result<CommentAuditHistoryRespVO> auditHistory(@Valid CommentAuditHistoryReqVO req) {
         List<CommentAuditEntity> list = commentBizService.listAuditHistory(req.getTargetId(), req.getTargetType());

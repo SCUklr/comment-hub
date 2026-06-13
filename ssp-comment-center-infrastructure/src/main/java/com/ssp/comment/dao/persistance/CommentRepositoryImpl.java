@@ -65,6 +65,17 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
+    public long countForAudit(Long commentObjectId, Integer commentType) {
+        return commentMapper.countForAudit(commentObjectId, commentType);
+    }
+
+    @Override
+    public List<CommentEntity> queryPageForAudit(Long commentObjectId, Integer commentType, int offset, int pageSize) {
+        List<CommentPO> pos = commentMapper.selectPageForAudit(commentObjectId, commentType, offset, pageSize);
+        return pos.stream().map(this::toEntity).collect(Collectors.toList());
+    }
+
+    @Override
     public void updateDeleteMark(Long id, Integer operatorId) {
         commentMapper.updateDeleteMark(id, 1);
     }

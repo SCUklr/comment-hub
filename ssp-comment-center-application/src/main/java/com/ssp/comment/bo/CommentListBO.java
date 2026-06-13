@@ -1,9 +1,9 @@
 package com.ssp.comment.bo;
 
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.List;
+
+import lombok.Data;
 
 @Data
 public class CommentListBO {
@@ -24,6 +24,7 @@ public class CommentListBO {
         private Integer sort;
         private Integer replyCount;
         private Integer likeCount;
+        private Integer auditStatus;
         private Boolean liked;
         private LocalDateTime createTime;
         private LocalDateTime updateTime;
@@ -41,6 +42,7 @@ public class CommentListBO {
         private Integer replyUserId;
         private Integer beRepliedUserId;
         private Integer likeCount;
+        private Integer auditStatus;
         private Boolean liked;
         private LocalDateTime createTime;
         private LocalDateTime updateTime;

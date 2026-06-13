@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(docker ps *)",
+      "Bash(redis-cli *)",
+      "Bash(kill *)"
+    ]
+  },
+  "$version": 4
+}

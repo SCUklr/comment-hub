@@ -25,6 +25,8 @@ public interface ReplyMapper {
                                                @Param("parentReplyId") Long parentReplyId,
                                                @Param("currentUserId") Integer currentUserId);
 
+    List<ReplyPO> selectByCommentIdsForAudit(@Param("commentIds") List<Long> commentIds);
+
     int updateDeleteMark(@Param("id") Long id, @Param("isDelete") Integer isDelete);
 
     int updateContent(@Param("id") Long id, @Param("content") String content, @Param("images") String images);

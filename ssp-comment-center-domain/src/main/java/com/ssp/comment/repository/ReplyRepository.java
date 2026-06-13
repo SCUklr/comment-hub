@@ -16,6 +16,8 @@ public interface ReplyRepository {
 
     List<ReplyEntity> queryByCommentIdsAndParent(List<Long> commentIds, Long parentReplyId, Integer currentUserId);
 
+    List<ReplyEntity> queryByCommentIdsForAudit(List<Long> commentIds);
+
     void updateDeleteMark(Long id, Integer operatorId);
 
     void updateContent(Long id, String content, String images);
