@@ -42,8 +42,20 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
+    public CommentEntity queryById(Long id, Long commentObjectId) {
+        CommentPO po = commentMapper.selectOneByIdWithObject(id, commentObjectId);
+        return toEntity(po);
+    }
+
+    @Override
     public List<CommentEntity> queryByIds(List<Long> ids) {
         List<CommentPO> pos = commentMapper.selectByIds(ids);
+        return pos.stream().map(this::toEntity).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CommentEntity> queryByIds(List<Long> ids, Long commentObjectId) {
+        List<CommentPO> pos = commentMapper.selectByIdsWithObject(ids, commentObjectId);
         return pos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 
@@ -76,33 +88,33 @@ public class CommentRepositoryImpl implements CommentRepository {
     }
 
     @Override
-    public void updateDeleteMark(Long id, Integer operatorId) {
-        commentMapper.updateDeleteMark(id, 1);
+    public void updateDeleteMark(Long id, Long commentObjectId, Integer operatorId) {
+        commentMapper.updateDeleteMark(id, commentObjectId, 1);
     }
 
     @Override
-    public void updateContent(Long id, String content, String images) {
-        commentMapper.updateContent(id, content, images);
+    public void updateContent(Long id, Long commentObjectId, String content, String images) {
+        commentMapper.updateContent(id, commentObjectId, content, images);
     }
 
     @Override
-    public void updatePin(Long id, boolean pin) {
-        commentMapper.updatePin(id, pin ? 999 : 0);
+    public void updatePin(Long id, Long commentObjectId, boolean pin) {
+        commentMapper.updatePin(id, commentObjectId, pin ? 999 : 0);
     }
 
     @Override
-    public void updateReplyCount(Long id, int delta) {
-        commentMapper.updateReplyCount(id, delta);
+    public void updateReplyCount(Long id, Long commentObjectId, int delta) {
+        commentMapper.updateReplyCount(id, commentObjectId, delta);
     }
 
     @Override
-    public void updateLikeCount(Long id, int delta) {
-        commentMapper.updateLikeCount(id, delta);
+    public void updateLikeCount(Long id, Long commentObjectId, int delta) {
+        commentMapper.updateLikeCount(id, commentObjectId, delta);
     }
 
     @Override
-    public void updateAuditStatus(Long id, Integer auditStatus) {
-        commentMapper.updateAuditStatus(id, auditStatus);
+    public void updateAuditStatus(Long id, Long commentObjectId, Integer auditStatus) {
+        commentMapper.updateAuditStatus(id, commentObjectId, auditStatus);
     }
 
     private CommentEntity toEntity(CommentPO po) {

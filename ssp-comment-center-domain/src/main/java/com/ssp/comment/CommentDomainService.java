@@ -58,7 +58,7 @@ public class CommentDomainService {
                                        String images,
                                        Integer userId) {
         validateCommentCreate(commentObjectId, commentType, content, userId);
-        ShardRoute route = CommentShardRouter.routeComment(commentType, userId);
+        ShardRoute route = CommentShardRouter.routeComment(commentObjectId);
         log.info("[CommentDomainService.createComment] shard route -> db={}, table={}, physical={}",
                 route.getDbIndex(), route.getTableIndex(), route.getPhysicalTable());
 
@@ -115,7 +115,7 @@ public class CommentDomainService {
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         replyRepository.save(entity);
-        commentRepository.updateReplyCount(commentId, 1);
+        commentRepository.updateReplyCount(commentId, parentComment.getCommentObjectId(), 1);
         saveDefaultPassedAuditRecord(entity.getId(), REPLY_TARGET_TYPE, content);
 
         eventPublisher.publishEvent(new ReplyCreatedEvent(
@@ -136,7 +136,7 @@ public class CommentDomainService {
             if (comment == null || Objects.equals(comment.getIsDelete(), DELETE_MARK)) {
                 throw new BizException("评论不存在");
             }
-            commentRepository.updateDeleteMark(id, userId);
+            commentRepository.updateDeleteMark(id, comment.getCommentObjectId(), userId);
             eventPublisher.publishEvent(new CommentDeletedEvent(
                 type, id, comment.getCommentObjectId(), comment.getCommentType(), userId, comment.getCommentUserId()
             ));
@@ -148,8 +148,10 @@ public class CommentDomainService {
             throw new BizException("回复不存在");
         }
         replyRepository.updateDeleteMark(id, userId);
-        commentRepository.updateReplyCount(reply.getCommentId(), -1);
         CommentEntity comment = commentRepository.queryById(reply.getCommentId());
+        if (comment != null) {
+            commentRepository.updateReplyCount(reply.getCommentId(), comment.getCommentObjectId(), -1);
+        }
         eventPublisher.publishEvent(new CommentDeletedEvent(
             type, id,
             comment != null ? comment.getCommentObjectId() : null,
@@ -165,7 +167,7 @@ public class CommentDomainService {
         if (comment == null || Objects.equals(comment.getIsDelete(), DELETE_MARK)) {
             throw new BizException("评论不存在");
         }
-        commentRepository.updateContent(id, content, defaultImages(images));
+        commentRepository.updateContent(id, comment.getCommentObjectId(), content, defaultImages(images));
         comment.setContent(content);
         comment.setImages(defaultImages(images));
         comment.setUpdateTime(LocalDateTime.now());
@@ -191,7 +193,7 @@ public class CommentDomainService {
         if (comment == null || Objects.equals(comment.getIsDelete(), DELETE_MARK)) {
             throw new BizException("评论不存在");
         }
-        commentRepository.updatePin(commentId, pin);
+        commentRepository.updatePin(commentId, comment.getCommentObjectId(), pin);
     }
 
     public PageResult<CommentEntity> queryCommentPage(Long commentObjectId,
@@ -204,10 +206,9 @@ public class CommentDomainService {
         commentLikedCarrier.clear();
         replyLikedCarrier.clear();
         commentLikeReplyCarrier.clear();
-        // 查询场景：评论表按 comment_type 分库、comment_user_id 分表。
-        // 此处 SQL 条件含 comment_type，可命中分库；不含 comment_user_id，分表层面将广播路由。
-        // 生产环境可通过 Redis 缓存评论列表，降低广播查询压力。
-        log.info("[CommentDomainService.queryCommentPage] comment_type={}, broadcast-table-routing expected", commentType);
+        // 查询场景：评论表按 comment_object_id 分库分表。
+        // 此处 SQL 条件含 comment_object_id，可精准命中单一物理分片。
+        log.info("[CommentDomainService.queryCommentPage] comment_objectId={}, single-shard routing expected", commentObjectId);
 
         int safePage = safePage(page);
         int safePageSize = safePageSize(pageSize);
@@ -277,7 +278,7 @@ public class CommentDomainService {
             if (comment == null) {
                 throw new BizException("评论不存在");
             }
-            commentRepository.updateLikeCount(targetId, 1);
+            commentRepository.updateLikeCount(targetId, comment.getCommentObjectId(), 1);
             markUserLiked(userId, targetId, targetType, true);
             newLikeCount = comment.getLikeCount() + 1;
             commentObjectId = comment.getCommentObjectId();
@@ -320,7 +321,7 @@ public class CommentDomainService {
             if (comment == null) {
                 throw new BizException("评论不存在");
             }
-            commentRepository.updateLikeCount(targetId, -1);
+            commentRepository.updateLikeCount(targetId, comment.getCommentObjectId(), -1);
             markUserLiked(userId, targetId, targetType, false);
             newLikeCount = Math.max(comment.getLikeCount() - 1, 0);
             commentObjectId = comment.getCommentObjectId();
@@ -395,7 +396,9 @@ public class CommentDomainService {
         commentAuditRepository.save(auditEntity);
 
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
-            commentRepository.updateAuditStatus(targetId, auditStatus);
+            if (comment != null) {
+                commentRepository.updateAuditStatus(targetId, comment.getCommentObjectId(), auditStatus);
+            }
         } else {
             replyRepository.updateAuditStatus(targetId, auditStatus);
         }
@@ -405,7 +408,10 @@ public class CommentDomainService {
                 && Objects.equals(auditStatus, 2)
                 && Objects.equals(previousAuditStatus, 1)
                 && reply != null) {
-            commentRepository.updateReplyCount(reply.getCommentId(), -1);
+            CommentEntity parentComment = commentRepository.queryById(reply.getCommentId());
+            if (parentComment != null) {
+                commentRepository.updateReplyCount(reply.getCommentId(), parentComment.getCommentObjectId(), -1);
+            }
         }
 
         eventPublisher.publishEvent(new CommentAuditChangedEvent(
@@ -466,7 +472,7 @@ public class CommentDomainService {
         List<Long> hotIds = new ArrayList<>(hotSet.valueRangeReversed(offset, offset + safePageSize - 1));
         List<CommentEntity> comments;
         if (CollectionUtils.isNotEmpty(hotIds)) {
-            comments = commentRepository.queryByIds(hotIds);
+            comments = commentRepository.queryByIds(hotIds, commentObjectId);
             Map<Long, CommentEntity> commentMap = comments.stream().collect(Collectors.toMap(CommentEntity::getId, item -> item, (a, b) -> a));
             comments = hotIds.stream().map(commentMap::get).filter(Objects::nonNull).collect(Collectors.toList());
         } else {

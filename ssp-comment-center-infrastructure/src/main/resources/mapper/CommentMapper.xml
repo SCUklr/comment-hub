@@ -39,6 +39,14 @@
         limit 1
     </select>
 
+    <select id="selectOneByIdWithObject" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where id = #{id}
+          and comment_object_id = #{commentObjectId}
+        limit 1
+    </select>
+
     <select id="selectByIds" resultMap="BaseResultMap">
         select <include refid="Base_Column_List"/>
         from component_comment
@@ -46,6 +54,18 @@
         <foreach collection="idList" item="item" open="(" close=")" separator=",">
             #{item}
         </foreach>
+          and is_delete = 0
+          and audit_status = 1
+    </select>
+
+    <select id="selectByIdsWithObject" resultMap="BaseResultMap">
+        select <include refid="Base_Column_List"/>
+        from component_comment
+        where id in
+        <foreach collection="idList" item="item" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+          and comment_object_id = #{commentObjectId}
           and is_delete = 0
           and audit_status = 1
     </select>
@@ -119,6 +139,7 @@
         set is_delete = #{isDelete},
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
     </update>
 
     <update id="updateContent">
@@ -127,6 +148,7 @@
             images = #{images},
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
           and is_delete = 0
     </update>
 
@@ -135,6 +157,7 @@
         set sort = #{sort},
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
           and is_delete = 0
     </update>
 
@@ -143,6 +166,7 @@
         set reply_count = greatest(reply_count + #{delta}, 0),
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
           and is_delete = 0
     </update>
 
@@ -151,6 +175,7 @@
         set like_count = greatest(like_count + #{delta}, 0),
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
           and is_delete = 0
     </update>
 
@@ -159,5 +184,6 @@
         set audit_status = #{auditStatus},
             update_time = now()
         where id = #{id}
+          and comment_object_id = #{commentObjectId}
     </update>
 </mapper>

@@ -10,7 +10,11 @@ public interface CommentRepository {
 
     CommentEntity queryById(Long id);
 
+    CommentEntity queryById(Long id, Long commentObjectId);
+
     List<CommentEntity> queryByIds(List<Long> ids);
+
+    List<CommentEntity> queryByIds(List<Long> ids, Long commentObjectId);
 
     long countByObject(Long commentObjectId, Integer commentType, Integer currentUserId);
 
@@ -22,15 +26,15 @@ public interface CommentRepository {
 
     List<CommentEntity> queryPageForAudit(Long commentObjectId, Integer commentType, int offset, int pageSize);
 
-    void updateDeleteMark(Long id, Integer operatorId);
+    void updateDeleteMark(Long id, Long commentObjectId, Integer operatorId);
 
-    void updateContent(Long id, String content, String images);
+    void updateContent(Long id, Long commentObjectId, String content, String images);
 
-    void updatePin(Long id, boolean pin);
+    void updatePin(Long id, Long commentObjectId, boolean pin);
 
-    void updateReplyCount(Long id, int delta);
+    void updateReplyCount(Long id, Long commentObjectId, int delta);
 
-    void updateLikeCount(Long id, int delta);
+    void updateLikeCount(Long id, Long commentObjectId, int delta);
 
-    void updateAuditStatus(Long id, Integer auditStatus);
+    void updateAuditStatus(Long id, Long commentObjectId, Integer auditStatus);
 }

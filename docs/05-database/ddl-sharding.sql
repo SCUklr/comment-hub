@@ -2,7 +2,7 @@
 -- 评论中心分库分表环境 DDL
 -- ============================================================
 -- 分片策略：
---   1. 评论表 component_comment：comment_type 分库(2库)，comment_user_id 分表(4表)
+--   1. 评论表 component_comment：comment_object_id 分库分表(2库×4表)
 --   2. 回复表 component_comment_reply：comment_id 分库分表(2库×4表)
 --   3. 点赞表 component_comment_like：user_id 分库分表(2库×4表)
 --   4. 用户索引表 component_user_comment_index：user_id 分库分表(2库×4表)
@@ -25,10 +25,10 @@ USE ssp_comment_0;
 CREATE TABLE IF NOT EXISTS component_comment_0 (
     id              BIGINT PRIMARY KEY COMMENT '评论ID',
     comment_object_id BIGINT NOT NULL COMMENT '评论对象ID',
-    comment_type    INT NOT NULL COMMENT '评论对象类型（分库键）',
+    comment_type    INT NOT NULL COMMENT '评论对象类型',
     content         TEXT NOT NULL COMMENT '评论内容',
     images          VARCHAR(2000) DEFAULT '[]' COMMENT '图片URL列表JSON',
-    comment_user_id INT NOT NULL COMMENT '评论用户ID（分表键）',
+    comment_user_id INT NOT NULL COMMENT '评论用户ID',
     sort            INT DEFAULT 0 COMMENT '置顶排序',
     reply_count     INT DEFAULT 0 COMMENT '回复数',
     like_count      INT DEFAULT 0 COMMENT '点赞数',
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS component_comment_0 (
     is_delete       TINYINT DEFAULT 0 COMMENT '是否删除',
     create_time     DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_object (comment_object_id, comment_type, is_delete),
+    INDEX idx_object (comment_object_id, comment_type, is_delete, sort, create_time),
     INDEX idx_user (comment_user_id, is_delete)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

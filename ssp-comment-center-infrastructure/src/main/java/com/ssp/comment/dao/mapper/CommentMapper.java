@@ -11,7 +11,11 @@ public interface CommentMapper {
 
     CommentPO selectOneById(@Param("id") Long id);
 
+    CommentPO selectOneByIdWithObject(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId);
+
     List<CommentPO> selectByIds(@Param("idList") List<Long> idList);
+
+    List<CommentPO> selectByIdsWithObject(@Param("idList") List<Long> idList, @Param("commentObjectId") Long commentObjectId);
 
     long countByObject(@Param("commentObjectId") Long commentObjectId,
                        @Param("commentType") Integer commentType,
@@ -37,15 +41,15 @@ public interface CommentMapper {
                                        @Param("offset") int offset,
                                        @Param("pageSize") int pageSize);
 
-    int updateDeleteMark(@Param("id") Long id, @Param("isDelete") Integer isDelete);
+    int updateDeleteMark(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("isDelete") Integer isDelete);
 
-    int updateContent(@Param("id") Long id, @Param("content") String content, @Param("images") String images);
+    int updateContent(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("content") String content, @Param("images") String images);
 
-    int updatePin(@Param("id") Long id, @Param("sort") Integer sort);
+    int updatePin(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("sort") Integer sort);
 
-    int updateReplyCount(@Param("id") Long id, @Param("delta") int delta);
+    int updateReplyCount(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("delta") int delta);
 
-    int updateLikeCount(@Param("id") Long id, @Param("delta") int delta);
+    int updateLikeCount(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("delta") int delta);
 
-    int updateAuditStatus(@Param("id") Long id, @Param("auditStatus") Integer auditStatus);
+    int updateAuditStatus(@Param("id") Long id, @Param("commentObjectId") Long commentObjectId, @Param("auditStatus") Integer auditStatus);
 }
