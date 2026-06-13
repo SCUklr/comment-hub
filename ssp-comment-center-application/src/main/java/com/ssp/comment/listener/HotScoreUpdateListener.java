@@ -1,5 +1,6 @@
 package com.ssp.comment.listener;
 
+import com.ssp.comment.event.CommentAuditChangedEvent;
 import com.ssp.comment.event.CommentLikedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
@@ -43,5 +44,24 @@ public class HotScoreUpdateListener {
         scoredSortedSet.add(hotScore, event.targetId());
         log.info("[HotScoreUpdate] commentId={}, newLikeCount={}, hotScore={}",
                 event.targetId(), event.newLikeCount(), hotScore);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async("commentEventExecutor")
+    public void onCommentAuditChanged(CommentAuditChangedEvent event) {
+        if (!Objects.equals(event.targetType(), 1)) {
+            return;
+        }
+        if (!Objects.equals(event.auditStatus(), 2)) {
+            return;
+        }
+        if (event.commentObjectId() == null || event.commentType() == null) {
+            return;
+        }
+        String key = String.format(HOT_COMMENT_KEY, event.commentObjectId(), event.commentType());
+        RScoredSortedSet<Long> scoredSortedSet = redissonClient.getScoredSortedSet(key);
+        scoredSortedSet.remove(event.targetId());
+        log.info("[HotScoreUpdate] commentId={} removed from hot set due to audit rejection. key={}",
+                event.targetId(), key);
     }
 }

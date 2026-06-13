@@ -99,13 +99,16 @@ public record CommentDeletedEvent(
 ) {}
 ```
 
-### 4.5 CommentAuditPassedEvent
+### 4.5 CommentAuditChangedEvent
 ```java
-public record CommentAuditPassedEvent(
+public record CommentAuditChangedEvent(
     Long targetId,
     Integer targetType,
     Integer auditStatus,
-    LocalDateTime auditTime
+    LocalDateTime auditTime,
+    Long commentObjectId,
+    Integer commentType,
+    Integer authorId
 ) {}
 ```
 
@@ -199,7 +202,9 @@ public void deleteTarget(Integer type, Long id, Integer userId) {
 @Transactional(rollbackFor = Exception.class)
 public void handleAuditCallback(...) {
     // ... 现有写库逻辑
-    eventPublisher.publishEvent(new CommentAuditPassedEvent(targetId, targetType, auditStatus, LocalDateTime.now()));
+    eventPublisher.publishEvent(new CommentAuditChangedEvent(
+            targetId, targetType, auditStatus, LocalDateTime.now(),
+            commentObjectId, commentType, authorId));
 }
 ```
 

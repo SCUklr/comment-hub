@@ -2,6 +2,7 @@ package com.ssp.comment.listener;
 
 import com.ssp.comment.common.SnowflakeIdUtils;
 import com.ssp.comment.entity.UserCommentIndexEntity;
+import com.ssp.comment.event.CommentAuditChangedEvent;
 import com.ssp.comment.event.CommentCreatedEvent;
 import com.ssp.comment.event.CommentDeletedEvent;
 import com.ssp.comment.event.ReplyCreatedEvent;
@@ -14,6 +15,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * 用户评论索引异步更新监听器
@@ -106,6 +108,38 @@ public class UserIndexUpdateListener {
                     event.targetType(), event.targetId(), event.targetAuthorId(), rows);
         } catch (Exception e) {
             log.error("[UserIndexUpdate] failed to mark deleted index. targetType={}, targetId={}",
+                    event.targetType(), event.targetId(), e);
+        }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Async("commentEventExecutor")
+    public void onCommentAuditChanged(CommentAuditChangedEvent event) {
+        try {
+            if (!Objects.equals(event.auditStatus(), 2)) {
+                return;
+            }
+            if (event.commentObjectId() == null || event.commentType() == null || event.authorId() == null) {
+                log.warn("[UserIndexUpdate] skip audit rejection mark due to missing info. targetType={}, targetId={}",
+                        event.targetType(), event.targetId());
+                return;
+            }
+            Integer interactionType = targetTypeToInteractionType(event.targetType());
+            if (interactionType == null) {
+                log.warn("[UserIndexUpdate] skip audit rejection mark due to unknown targetType. targetType={}, targetId={}",
+                        event.targetType(), event.targetId());
+                return;
+            }
+            int rows = userCommentIndexRepository.markDeleted(
+                    event.authorId(),
+                    event.commentObjectId(),
+                    event.commentType(),
+                    interactionType
+            );
+            log.info("[UserIndexUpdate] auditRejected index marked. targetType={}, targetId={}, userId={}, rows={}",
+                    event.targetType(), event.targetId(), event.authorId(), rows);
+        } catch (Exception e) {
+            log.error("[UserIndexUpdate] failed to mark deleted index on audit rejection. targetType={}, targetId={}",
                     event.targetType(), event.targetId(), e);
         }
     }

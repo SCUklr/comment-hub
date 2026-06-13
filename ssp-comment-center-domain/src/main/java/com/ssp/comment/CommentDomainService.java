@@ -3,7 +3,7 @@ package com.ssp.comment;
 import com.ssp.comment.common.BizException;
 import com.ssp.comment.common.SnowflakeIdUtils;
 import com.ssp.comment.entity.*;
-import com.ssp.comment.event.CommentAuditPassedEvent;
+import com.ssp.comment.event.CommentAuditChangedEvent;
 import com.ssp.comment.event.CommentCreatedEvent;
 import com.ssp.comment.event.CommentDeletedEvent;
 import com.ssp.comment.event.CommentLikedEvent;
@@ -72,12 +72,12 @@ public class CommentDomainService {
         entity.setSort(0);
         entity.setReplyCount(0);
         entity.setLikeCount(0);
-        entity.setAuditStatus(0);
+        entity.setAuditStatus(1);
         entity.setIsDelete(NORMAL_MARK);
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         commentRepository.save(entity);
-        savePendingAuditRecord(entity.getId(), COMMENT_TARGET_TYPE, content);
+        saveDefaultPassedAuditRecord(entity.getId(), COMMENT_TARGET_TYPE, content);
 
         eventPublisher.publishEvent(new CommentCreatedEvent(
             entity.getId(), commentObjectId, commentType, userId, content, entity.getCreateTime()
@@ -110,13 +110,13 @@ public class CommentDomainService {
         entity.setReplyUserId(userId);
         entity.setBeRepliedUserId(beRepliedUserId == null ? -1 : beRepliedUserId);
         entity.setLikeCount(0);
-        entity.setAuditStatus(0);
+        entity.setAuditStatus(1);
         entity.setIsDelete(NORMAL_MARK);
         entity.setCreateTime(LocalDateTime.now());
         entity.setUpdateTime(LocalDateTime.now());
         replyRepository.save(entity);
         commentRepository.updateReplyCount(commentId, 1);
-        savePendingAuditRecord(entity.getId(), REPLY_TARGET_TYPE, content);
+        saveDefaultPassedAuditRecord(entity.getId(), REPLY_TARGET_TYPE, content);
 
         eventPublisher.publishEvent(new ReplyCreatedEvent(
             entity.getId(), commentId, parentId, entity.getReplyType(), userId, content, entity.getCreateTime(),
@@ -353,7 +353,35 @@ public class CommentDomainService {
                                     Integer auditStatus,
                                     String auditReason,
                                     Long auditOperator) {
-        String contentSnapshot = queryTargetContent(targetId, targetType);
+        CommentEntity comment = null;
+        ReplyEntity reply = null;
+        Integer previousAuditStatus = null;
+        Long commentObjectId = null;
+        Integer commentType = null;
+        Integer authorId = null;
+
+        if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
+            comment = commentRepository.queryById(targetId);
+            if (comment != null) {
+                previousAuditStatus = comment.getAuditStatus();
+                commentObjectId = comment.getCommentObjectId();
+                commentType = comment.getCommentType();
+                authorId = comment.getCommentUserId();
+            }
+        } else {
+            reply = replyRepository.queryById(targetId);
+            if (reply != null) {
+                previousAuditStatus = reply.getAuditStatus();
+                authorId = reply.getReplyUserId();
+                CommentEntity parentComment = commentRepository.queryById(reply.getCommentId());
+                if (parentComment != null) {
+                    commentObjectId = parentComment.getCommentObjectId();
+                    commentType = parentComment.getCommentType();
+                }
+            }
+        }
+
+        String contentSnapshot = comment != null ? comment.getContent() : (reply != null ? reply.getContent() : null);
 
         CommentAuditEntity auditEntity = new CommentAuditEntity();
         auditEntity.setId(SnowflakeIdUtils.nextId());
@@ -371,8 +399,18 @@ public class CommentDomainService {
         } else {
             replyRepository.updateAuditStatus(targetId, auditStatus);
         }
-        eventPublisher.publishEvent(new CommentAuditPassedEvent(
-            targetId, targetType, auditStatus, LocalDateTime.now()
+
+        // 先发后审：回复从「通过」变为「拒绝」时，回退父评论的回复数
+        if (Objects.equals(targetType, REPLY_TARGET_TYPE)
+                && Objects.equals(auditStatus, 2)
+                && Objects.equals(previousAuditStatus, 1)
+                && reply != null) {
+            commentRepository.updateReplyCount(reply.getCommentId(), -1);
+        }
+
+        eventPublisher.publishEvent(new CommentAuditChangedEvent(
+                targetId, targetType, auditStatus, LocalDateTime.now(),
+                commentObjectId, commentType, authorId
         ));
     }
 
@@ -521,26 +559,17 @@ public class CommentDomainService {
         scoredSortedSet.add(hotScore, commentId);
     }
 
-    private void savePendingAuditRecord(Long targetId, Integer targetType, String content) {
+    private void saveDefaultPassedAuditRecord(Long targetId, Integer targetType, String content) {
         CommentAuditEntity auditEntity = new CommentAuditEntity();
         auditEntity.setId(SnowflakeIdUtils.nextId());
         auditEntity.setTargetId(targetId);
         auditEntity.setTargetType(targetType);
         auditEntity.setAuditContent(StringUtils.defaultString(content));
-        auditEntity.setAuditStatus(0);
-        auditEntity.setAuditReason("待审核");
+        auditEntity.setAuditStatus(1);
+        auditEntity.setAuditReason("默认通过");
         auditEntity.setAuditOperator(0L);
         auditEntity.setAuditTime(LocalDateTime.now());
         commentAuditRepository.save(auditEntity);
-    }
-
-    private String queryTargetContent(Long targetId, Integer targetType) {
-        if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
-            CommentEntity comment = commentRepository.queryById(targetId);
-            return comment != null ? comment.getContent() : null;
-        }
-        ReplyEntity reply = replyRepository.queryById(targetId);
-        return reply != null ? reply.getContent() : null;
     }
 
     public Boolean isCommentLiked(Long commentId) {

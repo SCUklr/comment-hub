@@ -430,10 +430,10 @@ curl -s -X POST http://localhost:8080/api/comment/audit/callback \
 ## 四、完整测试流程（建议顺序）
 
 ```
-1. 创建评论（用户 1）→ 记录 commentId，此时 audit_status=0
-2. 审核回调（auditStatus=1）→ 评论对所有人可见
-3. 回复评论（用户 2）→ 记录 replyId，此时 reply 也进入待审核
-4. 审核回调回复（auditStatus=1）
+1. 创建评论（用户 1）→ 记录 commentId，此时 audit_status=1，未登录用户可直接看到
+2. 审核回调（auditStatus=2）→ 评论对非作者隐藏，作者仍可见
+3. 回复评论（用户 2）→ 记录 replyId，此时 reply 默认 audit_status=1
+4. 审核回调回复（auditStatus=2）→ 回复对非作者隐藏，父评论 reply_count -1
 5. 查询评论列表（无登录）→ 验证 replyCount=1
 6. 点赞评论（用户 3）→ 验证 liked=true，用户 1 收到点赞通知
 7. 查询评论列表 → 验证 likeCount=1
@@ -447,7 +447,7 @@ curl -s -X POST http://localhost:8080/api/comment/audit/callback \
 15. 删除评论（用户 1）→ 验证列表为空
 ```
 
-> 注意：未调用审核回调前，非作者用户调用 `/api/comment/list` 不会看到新创建的评论/回复。
+> 注意：先发后审模式下，评论/回复创建后默认可见；被审核拒绝（auditStatus=2）后，非作者用户调用 `/api/comment/list` 才看不到该内容。
 
 ---
 
@@ -496,9 +496,9 @@ curl -s -X POST http://localhost:8080/api/notification/read/all \
 
 ## 七、审核状态机测试
 
-### 7.1 创建评论后自动进入待审核
+### 7.1 创建评论后默认通过
 
-创建评论后，`component_comment_audit` 表会自动生成一条 `audit_status=0` 的记录。
+创建评论后，`component_comment_audit` 表会自动生成一条 `audit_status=1`（默认通过）的记录。
 
 ```bash
 curl -s -X POST http://localhost:8080/api/comment/create \
@@ -508,7 +508,7 @@ curl -s -X POST http://localhost:8080/api/comment/create \
     "type": 1,
     "commentObjectId": 10001,
     "commentType": 1,
-    "content": "待审核测试评论"
+    "content": "默认通过测试评论"
   }'
 ```
 
@@ -534,8 +534,8 @@ curl -s "http://localhost:8080/api/comment/audit/history?targetId=72020926037759
 
 ### 7.4 审核状态过滤说明
 
-- 评论/回复创建后默认 `audit_status=0`（待审核），**非作者用户无法在未审核通过前看到**。
-- 调用审核回调将 `auditStatus` 设为 `1` 后，未登录用户才能在列表中查看。
-- 作者（`comment_user_id` / `reply_user_id` 与当前登录用户一致）始终可以看到自己的待审核/被拒绝内容。
+- 评论/回复创建后默认 `audit_status=1`（已通过），所有用户均可在列表中查看。
+- 调用审核回调将 `auditStatus` 设为 `2` 后，内容对非作者用户隐藏（作者仍可在列表中看到自己的被拒绝内容）。
+- 作者（`comment_user_id` / `reply_user_id` 与当前登录用户一致）可以看到自己被拒绝的内容。
 
 
