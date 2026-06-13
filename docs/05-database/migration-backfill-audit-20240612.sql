@@ -7,7 +7,7 @@
 --   2. 在 component_comment_audit 中补一条 "历史数据兼容，默认通过" 的审核记录，
 --      保证 /api/comment/audit/history 接口对旧数据也能返回历史。
 -- 执行方式：
---   docker exec -i mysql-comment mysql -u root -proot < docs/database/migration-backfill-audit-20240612.sql
+--   docker exec -i mysql-comment mysql -u root -proot < docs/05-database/migration-backfill-audit-20240612.sql
 -- 注意事项：
 --   - 本脚本为一次性脚本，执行前请务必备份；
 --   - 使用 UUID_SHORT() 生成 BIGINT 主键，确保与现有 Snowflake ID 不冲突；
