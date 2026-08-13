@@ -17,7 +17,7 @@
 | 层级 | 技术 |
 |------|------|
 | 框架 | Spring Boot 3.0.7 |
-| JDK | Java 17 |
+| JDK | Java 21 |
 | 数据库 | MySQL 8.0 + ShardingSphere-JDBC 5.4.1（分库分表） |
 | ORM | MyBatis 3.5 + MyBatis-Spring-Boot-Starter |
 | 缓存 | Redis + Redisson |
@@ -106,7 +106,7 @@ ssp-comment-center/
 
 | 表名 | 职责 | 分片策略 |
 |------|------|--------|
-| `component_comment` | 一级评论主表 | **comment_type 分库(2库) + comment_user_id 分表(4表)** |
+| `component_comment` | 一级评论主表 | **comment_object_id 分库分表(2库×4表)** |
 | `component_comment_reply` | 回复 / 楼中楼表 | **comment_id 分库分表(2库×4表)** |
 | `component_comment_like` | 点赞记录表 | **user_id 分库分表(2库×4表)** |
 | `component_comment_audit` | 审核记录表 | 不分片，单表存储于默认库 |
@@ -154,17 +154,17 @@ component_notification（站内通知，按接收人分片）
 
 ### 3. ShardingSphere-JDBC 分库分表
 
-通过 ShardingSphere-JDBC 按业务类型与用户 ID 维度分库分表，支撑百万级评论量：
+通过 ShardingSphere-JDBC 按对象 ID 与用户 ID 维度分库分表，支撑百万级评论量：
 
 | 表 | 分库键 | 分表键 | 规模 |
 |----|--------|--------|------|
-| 评论表 | `comment_type`（业务类型） | `comment_user_id`（用户ID） | 2库 × 4表 |
+| 评论表 | `comment_object_id`（评论对象ID） | `comment_object_id`（评论对象ID） | 2库 × 4表 |
 | 回复表 | `comment_id`（评论ID） | `comment_id`（评论ID） | 2库 × 4表 |
 | 点赞表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
 | 用户索引表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
 | 站内通知表 | `user_id`（用户ID） | `user_id`（用户ID） | 2库 × 4表 |
 
-- 评论表按业务类型分库，实现不同业务线数据隔离
+- 评论表按评论对象ID分库分表，同一对象下的评论落在同一物理分片，对象评论列表查询命中单分片
 - 回复表按评论ID分片，确保同一评论的楼中楼数据落在同一分片，查询命中单分片
 - 点赞表、用户索引表、站内通知表按用户ID分片，支撑高频用户维度反查命中单分片
 - 配置集中管理于 `application.yml`，业务代码面向逻辑表开发，零侵入
@@ -210,11 +210,11 @@ mysql -u root -p < docs/database/ddl.sql
 
 **方案 B：分库分表模式（生产环境）**
 ```bash
-# 创建 2 个数据库，共 32 张物理分片表
+# 创建 2 个数据库，共 40 张物理分片表（5 张分片表 × 2库 × 4表）
 mysql -u root -p < docs/database/ddl-sharding.sql
 ```
 
-> 分片策略：2库 × 4表，评论表按业务类型分库、用户ID分表；回复表按评论ID分库分表。
+> 分片策略：2库 × 4表，评论表按评论对象ID分库分表；回复表按评论ID分库分表。
 
 ### 2. Redis
 
@@ -251,7 +251,7 @@ curl -X POST "http://localhost:8080/api/comment/create" \
 | [`docs/评论平台系统设计技术方案.md`](docs/评论平台系统设计技术方案.md) | 完整技术方案，含需求分析、接口设计、数据库设计、缓存设计、分库分表设计 |
 | [`docs/评论模块源码结构说明.md`](docs/评论模块源码结构说明.md) | 源码结构、接口分布、关键流程伪代码、面试讲解顺序 |
 | [`docs/评论系统关键问题拷打点.md`](docs/评论系统关键问题拷打点.md) | 面试高频追问及回答：分片键选择、热点数据、表结构设计、高并发更新 |
-| [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，共32张物理表） |
+| [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
 
 ---
 
