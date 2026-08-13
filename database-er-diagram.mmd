@@ -1,0 +1,104 @@
+erDiagram
+    %% 一级评论与其回复的关系
+    component_comment ||--o{ component_comment_reply : "包含回复"
+    %% 回复自关联（楼中楼）
+    component_comment_reply ||--o{ component_comment_reply : "楼中楼(parent_reply_id)"
+
+    %% 多态点赞：target_type 区分评论(1)与回复(2)
+    component_comment ||--o{ component_comment_like : "被点赞(target_type=1)"
+    component_comment_reply ||--o{ component_comment_like : "被点赞(target_type=2)"
+
+    %% 多态审核：target_type 区分评论(1)与回复(2)
+    component_comment ||--o{ component_comment_audit : "被审核(target_type=1)"
+    component_comment_reply ||--o{ component_comment_audit : "被审核(target_type=2)"
+
+    %% 用户索引指向评论或回复
+    component_comment ||--o{ component_user_comment_index : "索引指向(target_comment_id)"
+    component_comment_reply ||--o{ component_user_comment_index : "索引指向(target_reply_id)"
+
+    %% 通知触发源指向评论或回复
+    component_comment ||--o{ component_notification : "触发通知(subject_type=1)"
+    component_comment_reply ||--o{ component_notification : "触发通知(subject_type=2)"
+
+    component_comment {
+        bigint id PK "评论ID"
+        bigint comment_object_id "评论对象ID(分库分表键)"
+        int comment_type "评论对象类型"
+        text content "评论内容"
+        varchar images "图片URL列表JSON"
+        int comment_user_id "评论用户ID"
+        int sort "置顶排序"
+        int reply_count "回复数"
+        int like_count "点赞数"
+        int audit_status "审核状态: 0未审核 1通过 2拒绝"
+        tinyint is_delete "是否删除: 0正常 1删除"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    component_comment_reply {
+        bigint id PK "回复ID"
+        bigint comment_id "所属评论ID(分库分表键)"
+        bigint parent_reply_id "父回复ID: 0=直接回复评论"
+        int reply_type "回复类型: 1一级回复 2楼中楼"
+        text content "回复内容"
+        varchar images "图片URL列表JSON"
+        int reply_user_id "回复用户ID"
+        int be_replied_user_id "被回复用户ID"
+        int like_count "点赞数"
+        int audit_status "审核状态"
+        tinyint is_delete "是否删除"
+        datetime create_time
+        datetime update_time
+    }
+
+    component_comment_like {
+        bigint id PK "记录ID"
+        int user_id "用户ID(分库分表键)"
+        bigint target_id "目标ID(评论/回复ID)"
+        int target_type "目标类型: 1评论 2回复"
+        datetime create_time
+    }
+
+    component_comment_audit {
+        bigint id PK "记录ID"
+        bigint target_id "目标ID(评论/回复ID)"
+        int target_type "目标类型: 1评论 2回复"
+        varchar audit_content "审核内容快照"
+        int audit_status "审核状态"
+        varchar audit_reason "审核原因"
+        bigint audit_operator "审核操作人ID"
+        datetime audit_time
+    }
+
+    component_user_comment_index {
+        bigint id PK "记录ID"
+        int user_id "用户ID(分库分表键)"
+        bigint comment_object_id "评论对象ID"
+        int comment_type "评论对象类型"
+        int interaction_type "互动类型: 1评论 2回复"
+        bigint target_comment_id "目标评论ID"
+        bigint target_reply_id "目标回复ID"
+        varchar latest_content "最新内容快照"
+        datetime latest_time "最新互动时间"
+        int interaction_count "互动次数"
+        tinyint is_delete "是否删除"
+        datetime create_time
+        datetime update_time
+    }
+
+    component_notification {
+        bigint id PK "通知ID"
+        int user_id "接收人ID(分库分表键)"
+        int type "通知类型: 1回复通知 2点赞通知"
+        bigint subject_id "触发对象ID(评论/回复ID)"
+        int subject_type "触发对象类型: 1评论 2回复"
+        int actor_id "触发者用户ID"
+        bigint comment_object_id "评论对象ID"
+        int comment_type "业务类型"
+        varchar content "内容摘要"
+        tinyint is_read "是否已读"
+        tinyint is_delete "是否删除"
+        datetime create_time
+        datetime update_time
+    }
