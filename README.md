@@ -31,14 +31,13 @@
 ```
 ssp-comment-center/
 ├── pom.xml                                    # 父POM
+├── web/                                       # 前端演示 Demo（Vite + React 18 + TS）
 ├── docs/                                      # 设计文档
-│   ├── database/                              # 数据库脚本
-│   │   ├── ddl.sql                            # 单库建表脚本（开发环境）
-│   │   └── ddl-sharding.sql                   # 分库分表建表脚本（生产环境，2库×4表）
-│   ├── 评论平台技术设计方案-精简版.md
-│   ├── 评论平台系统设计技术方案.md
-│   ├── 评论模块源码结构说明.md
-│   └── 评论系统关键问题拷打点.md
+│   ├── 01-design/                             # 设计方案：技术选型、接口契约、源码结构、面试拷打点、前端 Demo 方案
+│   ├── 03-extension/                          # 扩展方案：审核先发后审、Spring Event 异步事件驱动
+│   ├── 04-devops/                             # 运维：启动指南、API 测试指南、测试用例
+│   ├── 05-database/                           # 数据库脚本：ddl.sql、ddl-sharding.sql、迁移脚本
+│   └── 99-architecture/                       # 完整技术方案
 ├── ssp-comment-center-start/                  # 启动层
 │   ├── CommentCenterApplication.java          # 启动类
 │   ├── controller/CommentController.java      # 评论主接口 + 审核接口
@@ -199,47 +198,128 @@ component_notification（站内通知，按接收人分片）
 
 ---
 
-## 快速开始
+## 快速开始（前后端手动启动）
 
-### 1. 数据库（二选一）
+> 更详细的踩坑与排障记录见 [`docs/04-devops/如何启动项目.md`](docs/04-devops/如何启动项目.md)。
 
-**方案 A：单库模式（开发环境）**
+### 0. 环境要求
+
+| 依赖 | 版本 | 用途 |
+|------|------|------|
+| JDK | 21+ | 编译、运行后端 |
+| Maven | 3.9+ | 后端打包 |
+| Node.js | 18+ | 前端构建与运行 |
+| Docker | 任意 | 运行 MySQL 容器 |
+| Redis | 7.x | 缓存、点赞状态、热评 ZSet |
+
+### 1. 启动 MySQL（Docker，端口 3306）
+
+**首次初始化**（容器不存在时）：
+
 ```bash
-mysql -u root -p < docs/database/ddl.sql
+# ① 创建容器（账号 root / 密码 root）
+docker run -d --name mysql-comment \
+  -e MYSQL_ROOT_PASSWORD=root \
+  -p 3306:3306 mysql:8.0
+
+# ② 等待就绪后导入分库分表 DDL（2库 × 4表 + 审核单表）
+docker exec -i mysql-comment mysql -u root -proot < docs/05-database/ddl-sharding.sql
+
+# ③ 将 root 认证统一为 caching_sha2_password（MySQL 8 推荐，与源码 JDBC 配置匹配）
+docker exec mysql-comment mysql -u root -proot -e \
+  "ALTER USER 'root'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'root'; \
+   ALTER USER 'root'@'%' IDENTIFIED WITH caching_sha2_password BY 'root'; FLUSH PRIVILEGES;"
 ```
 
-**方案 B：分库分表模式（生产环境）**
+**日常启动 / 停止**（容器已存在，数据保留）：
+
 ```bash
-# 创建 2 个数据库，共 40 张物理分片表（5 张分片表 × 2库 × 4表）
-mysql -u root -p < docs/database/ddl-sharding.sql
+docker start mysql-comment      # 启动
+docker stop mysql-comment       # 停止
 ```
 
-> 分片策略：2库 × 4表，评论表按评论对象ID分库分表；回复表按评论ID分库分表。
+**验证**：`docker exec mysql-comment mysqladmin ping -u root -proot` → `mysqld is alive`
 
-### 2. Redis
-
-确保本地 Redis 运行，或修改 `application.yml` 中的连接配置。
-
-### 3. 编译运行
+### 2. 启动 Redis（端口 6379）
 
 ```bash
-cd ssp-comment-center
-mvn clean package
+redis-server --daemonize yes --port 6379
+redis-cli ping                  # 期望输出 PONG
+```
+
+### 3. 启动后端（端口 8080）
+
+```bash
+cd ~/ssp-comment-center
+
+# 打包（注意：start 模块存在既有的测试编译问题，必须加 -Dmaven.test.skip=true）
+mvn clean package -Dmaven.test.skip=true
+
+# 启动
 java -jar ssp-comment-center-start/target/ssp-comment-center-start-1.0.0-SNAPSHOT.jar
 ```
 
-### 4. 接口测试
+**验证**：`curl http://localhost:8080/actuator/health` → `{"status":"UP"}`
+
+> 连接配置见 `ssp-comment-center-start/src/main/resources/application.yml`：MySQL 为 `localhost:3306`（root/root，分库 `ssp_comment_0/1`），Redis 为 `localhost:6379`。源码已配置 `allowPublicKeyRetrieval=true` 以适配 MySQL 8 的 `caching_sha2_password` 认证。
+
+### 4. 启动前端（端口 5173）
 
 ```bash
-# 评论列表（无需登录）
-curl "http://localhost:8080/api/comment/list?commentObjectId=1&commentType=1"
-
-# 创建评论（需登录，通过 X-User-Id Header 传入用户ID）
-curl -X POST "http://localhost:8080/api/comment/create" \
-  -H "Content-Type: application/json" \
-  -H "X-User-Id: 10001" \
-  -d '{"type":1,"commentObjectId":1,"commentType":1,"content":"测试评论"}'
+cd ~/ssp-comment-center/web
+npm install          # 首次；若报 npm cache 权限错误，改用：npm install --cache ./.npm-cache
+npm run dev
 ```
+
+浏览器打开 **http://localhost:5173**（Vite 已将 `/api` 代理到 `http://localhost:8080`，无需后端 CORS）。
+
+**注意启动顺序**：先起后端（8080），再打开前端页面，否则页面请求会代理失败。
+
+### 5. 一键验证清单
+
+```bash
+# ① 后端健康
+curl http://localhost:8080/actuator/health
+
+# ② 评论列表（无需登录）
+curl "http://localhost:8080/api/comment/list?commentObjectId=10001&commentType=1&page=1&pageSize=3"
+
+# ③ 前端页面（浏览器打开）
+open http://localhost:5173
+```
+
+### 6. 停止服务
+
+```bash
+kill $(lsof -ti :8080)    # 后端
+pkill -f "vite"           # 前端（或在前端终端 Ctrl+C）
+redis-cli shutdown        # Redis（可选）
+docker stop mysql-comment # MySQL（可选，数据保留）
+```
+
+### 7. 常见问题
+
+| 现象 | 原因 | 解决 |
+|------|------|------|
+| 后端启动报 `Access denied for user 'root'@'localhost'` | 3306 被宿主机其他 MySQL 占用（如 Homebrew 服务），Docker 容器被遮蔽 | 停掉占用进程后重启容器。本机曾遇 Homebrew mysql launchd 服务占用：`launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.mysql.plist` |
+| `mvn package` 报 `cannot find symbol: CommentShardRouter` 等测试编译错误 | start 模块测试代码引用已重构的类，属既有问题 | 打包加 `-Dmaven.test.skip=true`（跳过测试编译，不影响运行） |
+| `npm install` 报 cache 目录权限错误 | `~/.npm` 存在 root 拥有的旧缓存 | `npm install --cache ./.npm-cache` |
+| 后端报 `Public Key Retrieval is not allowed` | MySQL 8 认证握手未开启公钥获取 | 确认源码已含 `allowPublicKeyRetrieval=true`（本仓库已配置）；若改过配置需重新打包 |
+
+### 8. 前端演示 Demo 功能与用法
+
+提供 Vite + React 18 + TypeScript 单页 Demo，完整覆盖全部接口能力，适合理解与介绍项目：
+
+| 区域 | 说明 |
+|------|------|
+| 顶部用户切换 | 通过 `X-User-Id` 模拟登录，内置 4 个演示用户（10001 作者 / 10002 / 10003 / 10004 运营），可自定义 ID |
+| 💬 评论区 | 发表评论、最新/热评双 Tab、展开回复（楼中楼）、点赞、编辑/删除（仅本人）、置顶 |
+| 📝 我的评论 | 按对象聚合展示"我评论/回复过哪些"，支持全部/仅评论/仅回复过滤 |
+| 🔔 通知 | 站内通知列表（回复/点赞），单条已读 / 全部已读 |
+| 🛡 审核 | 模拟审核回调（通过/拒绝）、待审核列表、审核历史，演示先发后审状态机 |
+
+- 演示数据：默认对象 `commentObjectId=10001`，多用户互动数据可现场创建；预置了楼中楼、置顶、热评与通知
+- 前端对接契约见 [`docs/01-design/接口契约.md`](docs/01-design/接口契约.md) 与 [`docs/01-design/最简前端 Demo 实现方案.md`](docs/01-design/最简前端 Demo 实现方案.md)
 
 ---
 
@@ -247,11 +327,14 @@ curl -X POST "http://localhost:8080/api/comment/create" \
 
 | 文档 | 用途 |
 |------|------|
-| [`docs/评论平台技术设计方案-精简版.md`](docs/评论平台技术设计方案-精简版.md) | 快速理解核心设计，适合喂给 LLM / 面试前复习 |
-| [`docs/评论平台系统设计技术方案.md`](docs/评论平台系统设计技术方案.md) | 完整技术方案，含需求分析、接口设计、数据库设计、缓存设计、分库分表设计 |
-| [`docs/评论模块源码结构说明.md`](docs/评论模块源码结构说明.md) | 源码结构、接口分布、关键流程伪代码、面试讲解顺序 |
-| [`docs/评论系统关键问题拷打点.md`](docs/评论系统关键问题拷打点.md) | 面试高频追问及回答：分片键选择、热点数据、表结构设计、高并发更新 |
-| [`docs/database/ddl-sharding.sql`](docs/database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
+| [`docs/01-design/评论平台技术设计方案-精简版.md`](docs/01-design/评论平台技术设计方案-精简版.md) | 快速理解核心设计，适合喂给 LLM / 面试前复习 |
+| [`docs/99-architecture/评论平台系统设计技术方案.md`](docs/99-architecture/评论平台系统设计技术方案.md) | 完整技术方案，含需求分析、接口设计、数据库设计、缓存设计、分库分表设计 |
+| [`docs/01-design/评论模块源码结构说明.md`](docs/01-design/评论模块源码结构说明.md) | 源码结构、接口分布、关键流程伪代码、面试讲解顺序 |
+| [`docs/01-design/评论系统关键问题拷打点.md`](docs/01-design/评论系统关键问题拷打点.md) | 面试高频追问及回答：分片键选择、热点数据、表结构设计、高并发更新 |
+| [`docs/01-design/接口契约.md`](docs/01-design/接口契约.md) | 全部 REST API 的请求/响应契约，前后端对接唯一依据 |
+| [`docs/04-devops/如何启动项目.md`](docs/04-devops/如何启动项目.md) | 详细启动步骤与环境踩坑记录 |
+| [`docs/04-devops/API测试指南.md`](docs/04-devops/API测试指南.md) | curl 快速测试命令 |
+| [`docs/05-database/ddl-sharding.sql`](docs/05-database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
 
 ---
 

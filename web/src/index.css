@@ -1,0 +1,442 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  font-size: 14px;
+}
+
+.app {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.topbar h1 {
+  font-size: 18px;
+  color: #1f1f1f;
+}
+
+.topbar .sub {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+}
+
+.user-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.user-switcher select {
+  padding: 6px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.tab {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  background: #f5f5f5;
+}
+
+.tab.active {
+  background: #1677ff;
+  color: #fff;
+  font-weight: 600;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+
+.btn.primary {
+  background: #1677ff;
+  border-color: #1677ff;
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: #4096ff;
+  color: #fff;
+}
+
+.btn.danger:hover {
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.sm {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* 输入 */
+.input,
+.textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: #1677ff;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* 评论 */
+.comment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 14px 2px;
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.comment-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #1677ff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.avatar-2 {
+  background: #13c2c2;
+}
+
+.avatar-3 {
+  background: #faad14;
+}
+
+.avatar-4 {
+  background: #eb2f96;
+}
+
+.avatar-default {
+  background: #8c8c8c;
+}
+
+.comment-user {
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.comment-meta {
+  color: #999;
+  font-size: 12px;
+}
+
+.comment-content {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.count {
+  color: #999;
+  font-size: 12px;
+}
+
+/* 回复树 */
+.reply-area {
+  margin-top: 10px;
+  margin-left: 38px;
+  border-left: 2px solid #f0f0f0;
+  padding-left: 12px;
+}
+
+.reply-item {
+  padding: 8px 0;
+  border-bottom: 1px dashed #f0f0f0;
+  font-size: 13px;
+}
+
+.reply-item:last-child {
+  border-bottom: none;
+}
+
+.reply-content {
+  margin: 3px 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+/* 回复输入 */
+.reply-form {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reply-form-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* 审核 Tab */
+.audit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.audit-history {
+  margin-top: 12px;
+  border-top: 1px dashed #e8e8e8;
+  padding-top: 12px;
+}
+
+.history-item {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  padding: 4px 0;
+  align-items: baseline;
+}
+
+/* 通知 */
+.notify-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+}
+
+.notify-item.unread {
+  background: #f0f7ff;
+  margin: 0 -8px;
+  padding: 12px 10px;
+  border-radius: 8px;
+}
+
+.notify-item:last-child {
+  border-bottom: none;
+}
+
+/* 我的评论 */
+.my-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 2px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: flex-start;
+}
+
+.my-item:last-child {
+  border-bottom: none;
+}
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 32px 0;
+  font-size: 13px;
+}
+
+/* 提示消息 */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.toast {
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  animation: fadeIn 0.2s ease;
+}
+
+.toast.success {
+  background: #52c41a;
+}
+
+.toast.error {
+  background: #ff4d4f;
+}
+
+.toast.info {
+  background: #1677ff;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hint {
+  font-size: 12px;
+  color: #999;
+  background: #fafafa;
+  border: 1px dashed #e8e8e8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  align-items: center;
+  font-size: 13px;
+  color: #666;
+}

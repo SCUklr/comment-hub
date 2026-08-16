@@ -73,3 +73,11 @@ __pycache__/
 .env.local
 .env.*.local
 dump.rdb
+
+# Web demo (web/)
+web/node_modules/
+web/.npm-cache/
+web/dist/
+
+# Personal files
+cv-updated.typ
