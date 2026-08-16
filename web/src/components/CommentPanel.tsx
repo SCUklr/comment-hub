@@ -51,17 +51,38 @@ interface RowProps {
   onDelete: (r: ReplyItem) => void;
   onEdit: (r: ReplyItem, content: string) => void;
   onReply: (r: ReplyItem, content: string) => void;
+  depth?: number;
 }
 
-function ReplyItemRow({ reply, currentUserId, onToggleLike, onDelete, onEdit, onReply }: RowProps) {
+function ReplyItemRow({ reply, currentUserId, onToggleLike, onDelete, onEdit, onReply, depth = 0 }: RowProps) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(reply.content);
   const [replying, setReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
+  const [showNested, setShowNested] = useState(false);
+  const [nestedReplies, setNestedReplies] = useState<ReplyItem[] | null>(null);
+  const [nestedLoading, setNestedLoading] = useState(false);
   const isMine = reply.replyUserId === currentUserId;
+  const canExpandNested = depth === 0; // 只有一级回复支持展开楼中楼
+
+  const toggleNested = async () => {
+    const next = !showNested;
+    setShowNested(next);
+    if (next && nestedReplies === null) {
+      setNestedLoading(true);
+      try {
+        const resp = await listReplies({ commentId: reply.commentId, parentId: reply.id, page: 1, pageSize: 50 });
+        setNestedReplies(resp.list);
+      } catch (e) {
+        toast((e as Error).message, 'error');
+      } finally {
+        setNestedLoading(false);
+      }
+    }
+  };
 
   return (
-    <div className="reply-item">
+    <div className="reply-item" style={{ marginLeft: depth * 12 }}>
       <div className="comment-head" style={{ marginBottom: 2 }}>
         <span className={`comment-avatar ${avatarClass(reply.replyUserId)}`} style={{ width: 22, height: 22, fontSize: 11 }}>
           {reply.replyUserId}
@@ -86,6 +107,11 @@ function ReplyItemRow({ reply, currentUserId, onToggleLike, onDelete, onEdit, on
       <div className="reply-actions">
         <LikeBtn liked={!!reply.liked} count={reply.likeCount} onToggle={() => onToggleLike(reply)} />
         <button className="btn sm" onClick={() => { setReplying(!replying); setReplyContent(''); }}>回复</button>
+        {canExpandNested && (
+          <button className="btn sm" onClick={toggleNested}>
+            {showNested ? '收起楼中楼' : '展开楼中楼'}
+          </button>
+        )}
         {isMine && (
           <>
             <button className="btn sm" onClick={() => setEditing(!editing)}>编辑</button>
@@ -112,6 +138,29 @@ function ReplyItemRow({ reply, currentUserId, onToggleLike, onDelete, onEdit, on
             </button>
             <button className="btn sm" onClick={() => setReplying(false)}>取消</button>
           </div>
+        </div>
+      )}
+
+      {canExpandNested && showNested && (
+        <div className="nested-replies">
+          {nestedLoading ? (
+            <div className="empty" style={{ padding: 8 }}>加载中...</div>
+          ) : !nestedReplies || nestedReplies.length === 0 ? (
+            <div className="empty" style={{ padding: 8 }}>暂无楼中楼</div>
+          ) : (
+            nestedReplies.map((nr) => (
+              <ReplyItemRow
+                key={nr.id}
+                reply={nr}
+                currentUserId={currentUserId}
+                onToggleLike={onToggleLike}
+                onDelete={onDelete}
+                onEdit={onEdit}
+                onReply={onReply}
+                depth={depth + 1}
+              />
+            ))
+          )}
         </div>
       )}
     </div>

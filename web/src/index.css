@@ -283,6 +283,13 @@ body {
   border-bottom: none;
 }
 
+.nested-replies {
+  margin-top: 6px;
+  margin-left: 8px;
+  padding-left: 10px;
+  border-left: 2px solid #f0f0f0;
+}
+
 .reply-content {
   margin: 3px 0;
   line-height: 1.5;
