@@ -4,8 +4,6 @@
 
 `ssp-comment-center` 是一个面向任意内容对象的**通用评论系统**，支持评论、回复（楼中楼）、点赞、热评、审核状态机、站内通知、用户评论历史反查等完整能力。共 **15 个 HTTP 接口**、**6 张核心表**、**2库×4表分库分表**。
 
-本项目以 `ssp-geek-commander` 的设计蓝图为基础，**彻底去除私有 Maven 依赖**，从零自研统一返回、分页、参数校验、用户上下文、雪花 ID 生成器等基础组件，实现真正独立可编译、可运行、可讲解的评论中心。
-
 ---
 
 ## 技术栈
@@ -141,13 +139,6 @@ docker stop mysql-comment # MySQL（可选，数据保留）
 | [`docs/04-devops/API测试指南.md`](docs/04-devops/API测试指南.md) | curl 快速测试命令 |
 | [`docs/05-database/ddl-sharding.sql`](docs/05-database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
 
----
-
-## 与原项目的关系
-
-- **设计蓝图来源**：`ssp-geek-commander`（评论中心设计项目）
-- **区别**：`ssp-comment-center` 彻底去除 `com.ssp.common` 等私有依赖，自研全部基础组件，实现真正独立可运行
-- **保留内容**：15个接口、DDD四层架构、6张核心表、分库分表路由逻辑、Redis缓存结构、统一目标模型、Spring Event 异步事件驱动
 
 ---
 
