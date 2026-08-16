@@ -136,6 +136,7 @@ public class CommentDomainService {
             if (comment == null || Objects.equals(comment.getIsDelete(), DELETE_MARK)) {
                 throw new BizException("评论不存在");
             }
+            checkOwner(comment.getCommentUserId(), userId, "评论");
             commentRepository.updateDeleteMark(id, comment.getCommentObjectId(), userId);
             eventPublisher.publishEvent(new CommentDeletedEvent(
                 type, id, comment.getCommentObjectId(), comment.getCommentType(), userId, comment.getCommentUserId()
@@ -147,6 +148,7 @@ public class CommentDomainService {
         if (reply == null || Objects.equals(reply.getIsDelete(), DELETE_MARK)) {
             throw new BizException("回复不存在");
         }
+        checkOwner(reply.getReplyUserId(), userId, "回复");
         replyRepository.updateDeleteMark(id, userId);
         CommentEntity comment = commentRepository.queryById(reply.getCommentId());
         if (comment != null) {
@@ -162,11 +164,12 @@ public class CommentDomainService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public CommentEntity editComment(Long id, String content, String images) {
+    public CommentEntity editComment(Long id, String content, String images, Integer userId) {
         CommentEntity comment = commentRepository.queryById(id);
         if (comment == null || Objects.equals(comment.getIsDelete(), DELETE_MARK)) {
             throw new BizException("评论不存在");
         }
+        checkOwner(comment.getCommentUserId(), userId, "评论");
         commentRepository.updateContent(id, comment.getCommentObjectId(), content, defaultImages(images));
         comment.setContent(content);
         comment.setImages(defaultImages(images));
@@ -175,11 +178,12 @@ public class CommentDomainService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public ReplyEntity editReply(Long id, String content, String images) {
+    public ReplyEntity editReply(Long id, String content, String images, Integer userId) {
         ReplyEntity reply = replyRepository.queryById(id);
         if (reply == null || Objects.equals(reply.getIsDelete(), DELETE_MARK)) {
             throw new BizException("回复不存在");
         }
+        checkOwner(reply.getReplyUserId(), userId, "回复");
         replyRepository.updateContent(id, content, defaultImages(images));
         reply.setContent(content);
         reply.setImages(defaultImages(images));
@@ -509,6 +513,15 @@ public class CommentDomainService {
     private void validateCommentCreate(Long commentObjectId, Integer commentType, String content, Integer userId) {
         if (commentObjectId == null || commentType == null || userId == null || userId < 0 || StringUtils.isBlank(content)) {
             throw new BizException("评论参数非法");
+        }
+    }
+
+    /**
+     * 校验当前操作者是否为内容所有者（编辑 / 删除仅限本人）
+     */
+    private void checkOwner(Integer ownerId, Integer userId, String targetName) {
+        if (ownerId == null || !ownerId.equals(userId)) {
+            throw new BizException("无权操作他人" + targetName);
         }
     }
 

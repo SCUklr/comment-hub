@@ -68,10 +68,10 @@ public class CommentBizService {
         commentDomainService.deleteTarget(type, id, currentUserId);
     }
 
-    public CommentEditBO edit(Integer type, Long id, String content, String images) {
+    public CommentEditBO edit(Integer type, Long id, String content, String images, Integer currentUserId) {
         CommentEditBO bo = new CommentEditBO();
         if (type != null && type == 1) {
-            CommentEntity entity = commentDomainService.editComment(id, content, images);
+            CommentEntity entity = commentDomainService.editComment(id, content, images, currentUserId);
             bo.setType(1);
             bo.setId(entity.getId());
             bo.setContent(entity.getContent());
@@ -80,7 +80,7 @@ public class CommentBizService {
             return bo;
         }
 
-        ReplyEntity entity = commentDomainService.editReply(id, content, images);
+        ReplyEntity entity = commentDomainService.editReply(id, content, images, currentUserId);
         bo.setType(2);
         bo.setId(entity.getId());
         bo.setContent(entity.getContent());

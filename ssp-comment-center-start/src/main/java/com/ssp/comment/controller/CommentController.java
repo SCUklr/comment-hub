@@ -48,7 +48,8 @@ public class CommentController {
     @PostMapping("/edit")
     @LoginRequired
     public Result<CommentEditRespVO> edit(@RequestBody @Valid CommentEditReqVO req) {
-        CommentEditBO bo = commentBizService.edit(req.getType(), req.getId(), req.getContent(), req.getImages());
+        CommentEditBO bo = commentBizService.edit(req.getType(), req.getId(), req.getContent(), req.getImages(),
+                UserContext.getCurrentUserId());
         return Result.success(CommentVOConvertor.toVO(bo));
     }
 
