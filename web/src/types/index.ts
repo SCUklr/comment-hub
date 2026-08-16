@@ -1,4 +1,6 @@
 // 与后端 vo/req、vo/resp 对齐的 TypeScript 类型
+// 注意：所有 ID 字段为 string —— 后端雪花 ID（如 744087244154953728）超出
+// JS Number 安全整数范围，已配置 Jackson 将 boxed Long 序列化为字符串，前端按 string 处理。
 
 export interface ApiResult<T> {
   code: number;
@@ -16,8 +18,8 @@ export interface PageData<T> {
 // ---------- 评论 ----------
 
 export interface CommentItem {
-  id: number;
-  commentObjectId: number;
+  id: string;
+  commentObjectId: string;
   commentType: number;
   content: string;
   images: string;
@@ -33,9 +35,9 @@ export interface CommentItem {
 }
 
 export interface ReplyItem {
-  id: number;
-  commentId: number;
-  parentId: number;
+  id: string;
+  commentId: string;
+  parentId: string;
   replyType: number;
   content: string;
   images: string;
@@ -63,7 +65,7 @@ export interface ReplyListResp {
 }
 
 export interface MyCommentItem {
-  commentObjectId: number;
+  commentObjectId: string;
   commentType: number;
   interactionType: number; // 1评论 2回复
   latestContent: string;
@@ -79,16 +81,16 @@ export interface MyCommentListResp {
 }
 
 export interface AuditHistoryItem {
-  id: number;
+  id: string;
   auditStatus: number;
   auditContent: string;
   auditReason: string;
-  auditOperator: number;
+  auditOperator: string;
   auditTime: string;
 }
 
 export interface AuditHistoryResp {
-  targetId: number;
+  targetId: string;
   targetType: number;
   list: AuditHistoryItem[];
 }
@@ -96,12 +98,12 @@ export interface AuditHistoryResp {
 // ---------- 通知 ----------
 
 export interface NotificationItem {
-  id: number;
+  id: string;
   type: number; // 1回复 2点赞
-  subjectId: number;
+  subjectId: string;
   subjectType: number; // 1评论 2回复
   actorId: number;
-  commentObjectId: number;
+  commentObjectId: string;
   commentType: number;
   content: string;
   isRead: number; // 0未读 1已读

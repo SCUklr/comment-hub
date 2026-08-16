@@ -31,7 +31,7 @@ export default function AuditPanel() {
     }
   };
 
-  const loadHistory = async (id: number, type: number) => {
+  const loadHistory = async (id: string, type: number) => {
     try {
       const resp = await auditHistory({ targetId: id, targetType: type });
       setHistory(resp.list);
@@ -48,7 +48,8 @@ export default function AuditPanel() {
     }
     try {
       await auditCallback({
-        targetId: Number(targetId),
+        // 雪花 ID 超出 JS 安全整数范围，必须按字符串原样传递（勿用 Number() 转换）
+        targetId,
         targetType,
         auditStatus,
         auditReason: auditReason || undefined,
@@ -56,7 +57,7 @@ export default function AuditPanel() {
       });
       toast(`审核回调成功：${AUDIT_STATUS_MAP[auditStatus].label}`);
       loadAuditList();
-      loadHistory(Number(targetId), targetType);
+      loadHistory(targetId, targetType);
     } catch (e) {
       toast((e as Error).message, 'error');
     }

@@ -125,7 +125,7 @@ interface ItemProps {
   onDelete: (t: Target) => void;
   onEdit: (t: Target, content: string) => void;
   onPin: (c: CommentItem, isPin: boolean) => void;
-  onReply: (c: CommentItem, commentId: number, parentId: number, beRepliedUserId: number | null, content: string) => void;
+  onReply: (c: CommentItem, commentId: string, parentId: string, beRepliedUserId: number | null, content: string) => void;
   expanded: boolean;
   fullReplies: ReplyItem[] | null;
   onToggleExpand: (c: CommentItem) => void;
@@ -209,7 +209,7 @@ function CommentItemView({
             <button
               className="btn primary sm"
               disabled={!replyContent.trim()}
-              onClick={() => { onReply(comment, comment.id, 0, null, replyContent.trim()); setReplying(false); setReplyContent(''); }}
+              onClick={() => { onReply(comment, comment.id, '0', null, replyContent.trim()); setReplying(false); setReplyContent(''); }}
             >
               发表回复
             </button>
@@ -259,9 +259,9 @@ export default function CommentPanel({ currentUserId }: { currentUserId: number 
   const [newContent, setNewContent] = useState('');
 
   // 每个评论展开后的完整回复列表
-  const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
-  const [repliesMap, setRepliesMap] = useState<Record<number, ReplyItem[]>>({});
-  const [replyLoadingMap, setReplyLoadingMap] = useState<Record<number, boolean>>({});
+  const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+  const [repliesMap, setRepliesMap] = useState<Record<string, ReplyItem[]>>({});
+  const [replyLoadingMap, setReplyLoadingMap] = useState<Record<string, boolean>>({});
 
   const pageSize = 10;
 
@@ -299,7 +299,7 @@ export default function CommentPanel({ currentUserId }: { currentUserId: number 
     if (next && !repliesMap[c.id]) {
       setReplyLoadingMap((m) => ({ ...m, [c.id]: true }));
       try {
-        const resp = await listReplies({ commentId: c.id, parentId: 0, page: 1, pageSize: 50 });
+        const resp = await listReplies({ commentId: c.id, parentId: '0', page: 1, pageSize: 50 });
         setRepliesMap((m) => ({ ...m, [c.id]: resp.list }));
       } catch (e) {
         toast((e as Error).message, 'error');
@@ -336,7 +336,7 @@ export default function CommentPanel({ currentUserId }: { currentUserId: number 
       await fn({ targetId: t.id, targetType });
       if (!isComment(t)) {
         // 回复点赞后刷新所属评论的回复列表
-        const resp = await listReplies({ commentId: t.commentId, parentId: 0, page: 1, pageSize: 50 });
+        const resp = await listReplies({ commentId: t.commentId, parentId: '0', page: 1, pageSize: 50 });
         setRepliesMap((m) => ({ ...m, [t.commentId]: resp.list }));
       }
       refresh();
@@ -379,8 +379,8 @@ export default function CommentPanel({ currentUserId }: { currentUserId: number 
 
   const handleReply = async (
     c: CommentItem,
-    commentId: number,
-    parentId: number,
+    commentId: string,
+    parentId: string,
     beRepliedUserId: number | null,
     content: string
   ) => {
@@ -397,7 +397,7 @@ export default function CommentPanel({ currentUserId }: { currentUserId: number 
       toast('回复成功');
       refresh();
       // 刷新该评论的回复列表
-      const resp = await listReplies({ commentId: c.id, parentId: 0, page: 1, pageSize: 50 });
+      const resp = await listReplies({ commentId: c.id, parentId: '0', page: 1, pageSize: 50 });
       setRepliesMap((m) => ({ ...m, [c.id]: resp.list }));
       setExpandedMap((m) => ({ ...m, [c.id]: true }));
     } catch (e) {

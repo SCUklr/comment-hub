@@ -12,33 +12,35 @@ export const TYPE_REPLY = 2;
 export const TARGET_TYPE_COMMENT = 1;
 export const TARGET_TYPE_REPLY = 2;
 
+// 注意：雪花 ID 为字符串（超出 JS 安全整数范围），所有 id/commentId/parentId/targetId 均按 string 传递
+
 // ---------- 评论 ----------
 
 export const createComment = (body: {
   type: number;
   commentObjectId?: number | null;
   commentType?: number | null;
-  commentId?: number | null;
-  parentId?: number | null;
+  commentId?: string | null;
+  parentId?: string | null;
   beRepliedUserId?: number | null;
   content: string;
   images?: string;
 }) => post('/comment/create', body);
 
-export const deleteComment = (body: { type: number; id: number }) =>
+export const deleteComment = (body: { type: number; id: string }) =>
   post('/comment/delete', body);
 
-export const editComment = (body: { type: number; id: number; content: string; images?: string }) =>
+export const editComment = (body: { type: number; id: string; content: string; images?: string }) =>
   post('/comment/edit', body);
 
-export const pinComment = (body: { commentId: number; isPin: boolean }) =>
+export const pinComment = (body: { commentId: string; isPin: boolean }) =>
   post('/comment/pin', body);
 
-export const like = (body: { targetId: number; targetType: number }) =>
-  post<{ targetId: number; targetType: number; liked: boolean }>('/comment/like', body);
+export const like = (body: { targetId: string; targetType: number }) =>
+  post<{ targetId: string; targetType: number; liked: boolean }>('/comment/like', body);
 
-export const unlike = (body: { targetId: number; targetType: number }) =>
-  post<{ targetId: number; targetType: number; liked: boolean }>('/comment/unlike', body);
+export const unlike = (body: { targetId: string; targetType: number }) =>
+  post<{ targetId: string; targetType: number; liked: boolean }>('/comment/unlike', body);
 
 export const listComments = (params: {
   commentObjectId: number;
@@ -65,7 +67,7 @@ export const listMyComments = (params: {
 // ---------- 审核 ----------
 
 export const auditCallback = (body: {
-  targetId: number;
+  targetId: string;
   targetType: number;
   auditStatus: number;
   auditReason?: string;
@@ -79,14 +81,14 @@ export const listAuditComments = (params: {
   pageSize?: number;
 }) => get<CommentListResp>('/comment/audit/list', params);
 
-export const auditHistory = (params: { targetId: number; targetType: number }) =>
+export const auditHistory = (params: { targetId: string; targetType: number }) =>
   get<AuditHistoryResp>('/comment/audit/history', params);
 
 // ---------- 回复 ----------
 
 export const listReplies = (params: {
-  commentId: number;
-  parentId?: number;
+  commentId: string;
+  parentId?: string;
   page?: number;
   pageSize?: number;
 }) => get<ReplyListResp>('/reply/list', params);
