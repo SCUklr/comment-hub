@@ -141,7 +141,7 @@ docker stop mysql-comment # MySQL（可选，数据保留）
 | [`docs/01-design/领域模型设计.md`](docs/01-design/领域模型设计.md) | 领域模型、聚合与表关系设计 |
 | [`docs/04-devops/如何启动项目.md`](docs/04-devops/如何启动项目.md) | 详细启动步骤与环境踩坑记录 |
 | [`docs/04-devops/接口测试.md`](docs/04-devops/接口测试.md) | 全部接口的 curl / Postman 测试、断言脚本、站内通知与审核状态机测试、常见问题 |
-| [`docs/01-design/待办-缓存与热点加固.md`](docs/01-design/待办-缓存与热点加固.md) | ⏸ 未开工的改进清单：缓存 TTL / 降级、点赞计数原子化、热度公式衰减、跨库事务与可观测性 |
+| [`docs/01-design/待办-缓存与热点加固.md`](docs/01-design/待办-缓存与热点加固.md) | ✅ **P0 已完成**（缓存 TTL / 降级、点赞计数原子化、热度公式修正、批量读）；P1/P2 待办：跨库事务、事件可靠性、可观测性 |
 | [`docs/05-database/ddl-sharding.sql`](docs/05-database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
 
 ---

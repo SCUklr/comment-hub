@@ -1,6 +1,8 @@
 package com.ssp.comment;
 
 import com.ssp.comment.common.BizException;
+import com.ssp.comment.common.CommentCacheConst;
+import com.ssp.comment.common.HotScoreUtils;
 import com.ssp.comment.common.SnowflakeIdUtils;
 import com.ssp.comment.entity.*;
 import com.ssp.comment.event.CommentAuditChangedEvent;
@@ -15,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.redisson.api.RBucket;
+import org.redisson.api.RBuckets;
 import org.redisson.api.RMap;
 import org.redisson.api.RScoredSortedSet;
 import org.redisson.api.RedissonClient;
@@ -23,7 +26,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,10 +40,6 @@ public class CommentDomainService {
     private static final int PIN_SORT = 999;
     private static final int COMMENT_TARGET_TYPE = 1;
     private static final int REPLY_TARGET_TYPE = 2;
-    private static final String COMMENT_LIKE_KEY = "comment:like:obj:%s";
-    private static final String REPLY_LIKE_KEY = "reply:like:obj:%s";
-    private static final String USER_LIKE_KEY = "user:like:%s:target:%s:%s";
-    private static final String HOT_COMMENT_KEY = "comment:hot:obj:%s:type:%s";
 
     private final CommentRepository commentRepository;
     private final ReplyRepository replyRepository;
@@ -277,6 +275,7 @@ public class CommentDomainService {
         Long commentObjectId = null;
         Integer commentType = null;
         Integer targetAuthorId = null;
+        long hotBase = 0L;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
@@ -288,6 +287,7 @@ public class CommentDomainService {
             commentObjectId = comment.getCommentObjectId();
             commentType = comment.getCommentType();
             targetAuthorId = comment.getCommentUserId();
+            hotBase = HotScoreUtils.toEpochHour(comment.getCreateTime());
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -304,7 +304,7 @@ public class CommentDomainService {
             targetAuthorId = reply.getReplyUserId();
         }
         eventPublisher.publishEvent(new CommentLikedEvent(
-            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, true, targetAuthorId
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, true, targetAuthorId, hotBase
         ));
         return new LikeResult(targetId, targetType, true);
     }
@@ -320,6 +320,7 @@ public class CommentDomainService {
         Long commentObjectId = null;
         Integer commentType = null;
         Integer targetAuthorId = null;
+        long hotBase = 0L;
         if (Objects.equals(targetType, COMMENT_TARGET_TYPE)) {
             CommentEntity comment = commentRepository.queryById(targetId);
             if (comment == null) {
@@ -331,6 +332,7 @@ public class CommentDomainService {
             commentObjectId = comment.getCommentObjectId();
             commentType = comment.getCommentType();
             targetAuthorId = comment.getCommentUserId();
+            hotBase = HotScoreUtils.toEpochHour(comment.getCreateTime());
         } else {
             ReplyEntity reply = replyRepository.queryById(targetId);
             if (reply == null) {
@@ -347,7 +349,7 @@ public class CommentDomainService {
             targetAuthorId = reply.getReplyUserId();
         }
         eventPublisher.publishEvent(new CommentLikedEvent(
-            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, false, targetAuthorId
+            targetId, targetType, userId, commentObjectId, commentType, newLikeCount, false, targetAuthorId, hotBase
         ));
         return new LikeResult(targetId, targetType, false);
     }
@@ -470,10 +472,17 @@ public class CommentDomainService {
         int safePage = safePage(page);
         int safePageSize = safePageSize(pageSize);
         int offset = (safePage - 1) * safePageSize;
-        String hotKey = String.format(HOT_COMMENT_KEY, commentObjectId, commentType);
-        RScoredSortedSet<Long> hotSet = redissonClient.getScoredSortedSet(hotKey);
+        String hotKey = String.format(CommentCacheConst.HOT_COMMENT_KEY, commentObjectId, commentType);
 
-        List<Long> hotIds = new ArrayList<>(hotSet.valueRangeReversed(offset, offset + safePageSize - 1));
+        // 读热评榜：Redis 不可用时降级为回源 DB——慢一点但接口不 500
+        List<Long> hotIds = Collections.emptyList();
+        try {
+            RScoredSortedSet<Long> hotSet = redissonClient.getScoredSortedSet(hotKey);
+            hotIds = new ArrayList<>(hotSet.valueRangeReversed(offset, offset + safePageSize - 1));
+        } catch (Exception e) {
+            log.warn("[Cache] 热评榜读取失败，降级回源 DB。key={}", hotKey, e);
+        }
+
         List<CommentEntity> comments;
         if (CollectionUtils.isNotEmpty(hotIds)) {
             comments = commentRepository.queryByIds(hotIds, commentObjectId);
@@ -481,8 +490,14 @@ public class CommentDomainService {
             comments = hotIds.stream().map(commentMap::get).filter(Objects::nonNull).collect(Collectors.toList());
         } else {
             comments = commentRepository.queryHotPageByObject(commentObjectId, commentType, offset, safePageSize, currentUserId);
-            for (CommentEntity comment : comments) {
-                updateHotCommentScore(commentObjectId, commentType, comment.getId(), comment.getLikeCount());
+            // 回填热评榜；回填失败只记日志，不影响本次返回
+            try {
+                for (CommentEntity comment : comments) {
+                    updateHotCommentScore(commentObjectId, commentType, comment.getId(),
+                            comment.getLikeCount(), comment.getCreateTime());
+                }
+            } catch (Exception e) {
+                log.warn("[Cache] 热评榜回填失败（不影响本次返回）。key={}", hotKey, e);
             }
         }
         batchFillCommentLikeCount(commentObjectId, comments, currentUserId);
@@ -555,65 +570,125 @@ public class CommentDomainService {
         return StringUtils.isBlank(images) ? "[]" : images;
     }
 
+    /**
+     * 批量填充评论的点赞数 + "当前用户是否点过赞"。
+     *
+     * <p><b>改造点（原来这里是 N+1）</b>：</p>
+     * <ul>
+     *   <li>点赞数：原来每条评论一次 {@code RMap.get} → 现在一次 {@code RMap.getAll}（服务端等价 HMGET）；</li>
+     *   <li>点赞状态：原来每条评论一次 {@code RBucket.isExists} → 现在一次 {@code RBuckets.get}（等价 MGET）。</li>
+     * </ul>
+     * <p>一页 20 条评论的 Redis 往返从 <b>40 次降到 2 次</b>。</p>
+     *
+     * <p><b>降级</b>：Redis 异常时不抛给上层——点赞数保留 DB 原值，点赞状态按"未点赞"处理。</p>
+     */
     private void batchFillCommentLikeCount(Long commentObjectId, List<CommentEntity> comments, Integer currentUserId) {
         if (CollectionUtils.isEmpty(comments)) {
             return;
         }
-        RMap<Long, Integer> likeMap = redissonClient.getMap(String.format(COMMENT_LIKE_KEY, commentObjectId));
+        List<Long> ids = comments.stream().map(CommentEntity::getId).collect(Collectors.toList());
+        Map<Long, Integer> likeCounts = Collections.emptyMap();
+        Set<String> likedKeys = Collections.emptySet();
+        try {
+            RMap<Long, Integer> likeMap = redissonClient.getMap(
+                    String.format(CommentCacheConst.COMMENT_LIKE_KEY, commentObjectId));
+            likeCounts = likeMap.getAll(new HashSet<>(ids));
+            if (currentUserId != null) {
+                likedKeys = redissonClient.getBuckets()
+                        .get(userLikeKeys(currentUserId, ids, COMMENT_TARGET_TYPE).toArray(new String[0]))
+                        .keySet();
+            }
+        } catch (Exception e) {
+            log.warn("[Cache] 评论点赞缓存读取失败，降级为 DB 原值。objectId={}", commentObjectId, e);
+        }
         for (CommentEntity comment : comments) {
-            Integer likeCount = likeMap.get(comment.getId());
+            Integer likeCount = likeCounts.get(comment.getId());
             if (likeCount != null) {
                 comment.setLikeCount(likeCount);
             }
-            commentLikedCarrier.put(comment.getId(), currentUserId == null ? Boolean.FALSE : isUserLiked(currentUserId, comment.getId(), COMMENT_TARGET_TYPE));
+            boolean liked = currentUserId != null
+                    && likedKeys.contains(userLikeKey(currentUserId, comment.getId(), COMMENT_TARGET_TYPE));
+            commentLikedCarrier.put(comment.getId(), liked);
         }
     }
 
+    /** 批量填充回复的点赞数 + "当前用户是否点过赞"，做法同 {@link #batchFillCommentLikeCount}。 */
     private void batchFillReplyLikeCount(Long commentObjectId, List<ReplyEntity> replies, Integer currentUserId) {
         if (CollectionUtils.isEmpty(replies)) {
             return;
         }
-        RMap<Long, Integer> likeMap = redissonClient.getMap(String.format(REPLY_LIKE_KEY, commentObjectId));
+        List<Long> ids = replies.stream().map(ReplyEntity::getId).collect(Collectors.toList());
+        Map<Long, Integer> likeCounts = Collections.emptyMap();
+        Set<String> likedKeys = Collections.emptySet();
+        try {
+            RMap<Long, Integer> likeMap = redissonClient.getMap(
+                    String.format(CommentCacheConst.REPLY_LIKE_KEY, commentObjectId));
+            likeCounts = likeMap.getAll(new HashSet<>(ids));
+            if (currentUserId != null) {
+                likedKeys = redissonClient.getBuckets()
+                        .get(userLikeKeys(currentUserId, ids, REPLY_TARGET_TYPE).toArray(new String[0]))
+                        .keySet();
+            }
+        } catch (Exception e) {
+            log.warn("[Cache] 回复点赞缓存读取失败，降级为 DB 原值。objectId={}", commentObjectId, e);
+        }
         for (ReplyEntity reply : replies) {
-            Integer likeCount = likeMap.get(reply.getId());
+            Integer likeCount = likeCounts.get(reply.getId());
             if (likeCount != null) {
                 reply.setLikeCount(likeCount);
             }
-            replyLikedCarrier.put(reply.getId(), currentUserId == null ? Boolean.FALSE : isUserLiked(currentUserId, reply.getId(), REPLY_TARGET_TYPE));
+            boolean liked = currentUserId != null
+                    && likedKeys.contains(userLikeKey(currentUserId, reply.getId(), REPLY_TARGET_TYPE));
+            replyLikedCarrier.put(reply.getId(), liked);
         }
     }
 
-    private void incrementCommentLikeCache(Long commentObjectId, Long commentId, int delta) {
-        RMap<Long, Integer> map = redissonClient.getMap(String.format(COMMENT_LIKE_KEY, commentObjectId));
-        Integer current = map.get(commentId);
-        map.put(commentId, Math.max((current == null ? 0 : current) + delta, 0));
-    }
-
-    private void incrementReplyLikeCache(Long commentObjectId, Long replyId, int delta) {
-        RMap<Long, Integer> map = redissonClient.getMap(String.format(REPLY_LIKE_KEY, commentObjectId));
-        Integer current = map.get(replyId);
-        map.put(replyId, Math.max((current == null ? 0 : current) + delta, 0));
-    }
-
+    /**
+     * 标记 / 取消"用户已点赞"。
+     *
+     * <p><b>修掉的 BUG</b>：原来写入时带了 <b>7 天 TTL</b>，7 天后状态位自动消失，前端会显示"未点赞"，
+     * 用户再点一次就会撞 DB 唯一索引 {@code uk_user_target(user_id, target_id, target_type)} 报错。
+     * 这里改为<b>不设 TTL</b>——状态位与 DB 里的点赞记录同生命周期，取消点赞时显式删除。</p>
+     *
+     * <p>后续如果 user:like 的 key 数量成为问题，可升级为用户维度 Set / Bitmap（见
+     * docs/02-interview/设计与稳定性追问.md §3.4）。</p>
+     */
     private void markUserLiked(Integer userId, Long targetId, Integer targetType, boolean liked) {
-        String key = String.format(USER_LIKE_KEY, userId, targetType, targetId);
-        RBucket<String> bucket = redissonClient.getBucket(key);
+        RBucket<String> bucket = redissonClient.getBucket(userLikeKey(userId, targetId, targetType));
         if (liked) {
-            bucket.set("1", Duration.ofDays(7));
+            bucket.set("1");
         } else {
             bucket.delete();
         }
     }
 
-    private boolean isUserLiked(Integer userId, Long targetId, Integer targetType) {
-        return redissonClient.getBucket(String.format(USER_LIKE_KEY, userId, targetType, targetId)).isExists();
+    /** 拼一个"用户点赞状态"的 key。 */
+    private String userLikeKey(Integer userId, Long targetId, Integer targetType) {
+        return String.format(CommentCacheConst.USER_LIKE_KEY, userId, targetType, targetId);
     }
 
-    private void updateHotCommentScore(Long commentObjectId, Integer commentType, Long commentId, Integer likeCount) {
-        long hotScore = (long) Math.max(likeCount, 0) * 100 + System.currentTimeMillis() / 1000;
-        RScoredSortedSet<Long> scoredSortedSet = redissonClient.getScoredSortedSet(String.format(HOT_COMMENT_KEY, commentObjectId, commentType));
+    /** 批量拼"用户点赞状态"的 key，用于一次 MGET。 */
+    private Set<String> userLikeKeys(Integer userId, List<Long> targetIds, Integer targetType) {
+        return targetIds.stream()
+                .map(id -> userLikeKey(userId, id, targetType))
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 写入 / 刷新热评榜分数，并续期 TTL。
+     *
+     * <p>分数公式见 {@link HotScoreUtils}（赞数主导 + 创建时间做同分先后）；
+     * TTL 是兜底：万一写进脏数据（例如已删除的评论 ID），最多留 1 小时就自动消失，
+     * 不会像以前那样永久留在榜上导致 hot 接口返回空。</p>
+     */
+    private void updateHotCommentScore(Long commentObjectId, Integer commentType, Long commentId,
+                                       Integer likeCount, LocalDateTime createTime) {
+        String key = String.format(CommentCacheConst.HOT_COMMENT_KEY, commentObjectId, commentType);
+        long hotScore = HotScoreUtils.score(likeCount, HotScoreUtils.toEpochHour(createTime));
+        RScoredSortedSet<Long> scoredSortedSet = redissonClient.getScoredSortedSet(key);
         scoredSortedSet.remove(commentId);
         scoredSortedSet.add(hotScore, commentId);
+        scoredSortedSet.expire(CommentCacheConst.HOT_CACHE_TTL);
     }
 
     private void saveDefaultPassedAuditRecord(Long targetId, Integer targetType, String content) {
