@@ -26,11 +26,12 @@
 ssp-comment-center/
 ├── web/                              # 前端演示 Demo（Vite + React 18 + TS）
 ├── docs/                             # 设计文档
-│   ├── 01-design/                    # 设计方案、接口契约、面试复习速查
+│   ├── 01-design/                    # 设计方案、接口契约、领域模型
+│   ├── 02-interview/                 # 面试材料（总纲 / 高频问答 / 设计与稳定性追问）
 │   ├── 03-extension/                 # 扩展方案
-│   ├── 04-devops/                    # 启动指南、API 测试
+│   ├── 04-devops/                    # 启动指南、接口测试
 │   ├── 05-database/                  # 数据库脚本
-│   └── 99-architecture/              # 完整技术方案
+│   ├── 99-architecture/              # 完整技术方案（设计态）
 ├── ssp-comment-center-start/         # 启动层（Controller、VO、自研基础组件）
 ├── ssp-comment-center-application/   # 应用层（业务编排）
 ├── ssp-comment-center-domain/        # 领域层（核心服务、实体、路由、雪花ID）
@@ -129,16 +130,19 @@ docker stop mysql-comment # MySQL（可选，数据保留）
 
 | 文档 | 用途 |
 |------|------|
-| [`docs/01-design/面试复习速查.md`](docs/01-design/面试复习速查.md) | **面试核心内容**：架构设计、数据库、缓存、分库分表、接口、踩坑记录 |
+| [`docs/02-interview/面试总纲.md`](docs/02-interview/面试总纲.md) | **面试唯一主文档**：事实底稿、已实现/未实现清单、自我介绍、简历逐条拆解、数字红线、设计亮点与踩坑记录 |
+| [`docs/02-interview/高频问答.md`](docs/02-interview/高频问答.md) | 面试高频追问问答（分库分表、缓存一致性、Spring Event、表结构、雷点），由原拷打手册 / 拷打点 / 八股清单合并去重 |
+| [`docs/02-interview/设计与稳定性追问.md`](docs/02-interview/设计与稳定性追问.md) | 设计态方案：缓存降级（穿透 / 击穿 / 雪崩）、强弱依赖、容量评估五步法 + 原文出处索引 |
+| [`loadtest/REPORT.md`](loadtest/REPORT.md) | **压测原始报告**：k6 分级压测数据、资源观测、拐点分析（简历数字唯一出处） |
 | [`docs/01-design/评论平台技术设计方案-精简版.md`](docs/01-design/评论平台技术设计方案-精简版.md) | 快速理解核心设计，适合喂给 LLM / 面试前复习 |
-| [`docs/99-architecture/评论平台系统设计技术方案.md`](docs/99-architecture/评论平台系统设计技术方案.md) | 完整技术方案，含需求分析、接口设计、数据库设计、缓存设计、分库分表设计 |
+| [`docs/99-architecture/评论平台系统设计技术方案.md`](docs/99-architecture/评论平台系统设计技术方案.md) | 完整技术方案（设计态）：需求分析、接口设计、数据库设计、缓存设计、分库分表设计；含未实现的 MQ / ES / 定时任务，仅供参考 |
 | [`docs/01-design/评论模块源码结构说明.md`](docs/01-design/评论模块源码结构说明.md) | 源码结构、接口分布、关键流程伪代码、面试讲解顺序 |
-| [`docs/01-design/评论系统关键问题拷打点.md`](docs/01-design/评论系统关键问题拷打点.md) | 面试高频追问及回答：分片键选择、热点数据、表结构设计、高并发更新 |
-| [`docs/01-design/接口契约.md`](docs/01-design/接口契约.md) | 全部 REST API 的请求/响应契约，前后端对接唯一依据 |
+| [`docs/01-design/接口契约.md`](docs/01-design/接口契约.md) | 全部 REST API 的请求 / 响应契约，前后端对接唯一依据 |
+| [`docs/01-design/领域模型设计.md`](docs/01-design/领域模型设计.md) | 领域模型、聚合与表关系设计 |
 | [`docs/04-devops/如何启动项目.md`](docs/04-devops/如何启动项目.md) | 详细启动步骤与环境踩坑记录 |
-| [`docs/04-devops/API测试指南.md`](docs/04-devops/API测试指南.md) | curl 快速测试命令 |
+| [`docs/04-devops/接口测试.md`](docs/04-devops/接口测试.md) | 全部接口的 curl / Postman 测试、断言脚本、站内通知与审核状态机测试、常见问题 |
+| [`docs/01-design/待办-缓存与热点加固.md`](docs/01-design/待办-缓存与热点加固.md) | ⏸ 未开工的改进清单：缓存 TTL / 降级、点赞计数原子化、热度公式衰减、跨库事务与可观测性 |
 | [`docs/05-database/ddl-sharding.sql`](docs/05-database/ddl-sharding.sql) | 分库分表环境建表脚本（2库×4表，5张分片表共40张物理表 + 审核单表，合计41张） |
-
 
 ---
 

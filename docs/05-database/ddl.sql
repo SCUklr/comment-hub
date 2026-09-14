@@ -1,3 +1,6 @@
+-- ⚠️ 早期单库版本 DDL（库名 ssp_comment，无分片表），仅作历史参考。
+-- ⚠️ 当前项目使用分库分表，请以 docs/05-database/ddl-sharding.sql 为准建库建表。
+
 -- 评论中心数据库DDL
 -- 数据库: ssp_comment
 -- 字符集: utf8mb4

@@ -79,5 +79,12 @@ web/node_modules/
 web/.npm-cache/
 web/dist/
 
+# Root-level npm cache（README 里的 npm install --cache ./.npm-cache 会生成）
+.npm-cache/
+
+# 本地工具缓存与截图产物
+.wb/
+output.png
+
 # Personal files
 cv-updated.typ
